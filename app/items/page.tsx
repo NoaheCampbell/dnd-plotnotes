@@ -1,36 +1,43 @@
 "use client";
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Plus, Search, MoreHorizontal, Package } from "lucide-react"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-
-const allItems = [
-  {
-    name: "Staff of Frost",
-    type: "Wondrous Item",
-    rarity: "Legendary",
-    campaign: "Storm King's Thunder",
-  },
-  {
-    name: "Sunblade",
-    type: "Weapon",
-    rarity: "Rare",
-    campaign: "Curse of Strahd",
-  },
-  {
-    name: "Potion of Invisibility",
-    type: "Consumable",
-    rarity: "Very Rare",
-    campaign: "Homebrew Campaign",
-  },
-]
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 export default function ItemsPage() {
   const [search, setSearch] = useState("")
+  const [items, setItems] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
 
-  const filtered = allItems.filter((item) =>
+  useEffect(() => {
+    fetch("/api/items")
+      .then(res => res.json())
+      .then(setItems)
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const res = await fetch("/api/items", {
+      method: "POST",
+      body: formData,
+    })
+    if (res.ok) {
+      setOpen(false)
+      form.reset()
+      const newItem = await res.json()
+      setItems([...items, newItem])
+    } else {
+      alert("Failed to add item")
+    }
+  }
+
+  const filtered = items.filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase()),
   )
 
@@ -57,17 +64,50 @@ export default function ItemsPage() {
                 className="w-[200px] pl-8 md:w-[260px] rounded-full bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
               />
             </div>
-            <Button className="bg-red-900 hover:bg-red-800 text-amber-100">
-              <Plus className="mr-2 h-4 w-4" />
-              New Item
-            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-red-900 hover:bg-red-800 text-amber-100">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+                <DialogHeader>
+                  <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Add Item</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-amber-900 dark:text-amber-200">Name</Label>
+                    <Input name="name" required className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="type" className="text-amber-900 dark:text-amber-200">Type</Label>
+                    <Input name="type" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rarity" className="text-amber-900 dark:text-amber-200">Rarity</Label>
+                    <Input name="rarity" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign" className="text-amber-900 dark:text-amber-200">Campaign</Label>
+                    <Input name="campaign" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="ghost" className="text-amber-900 dark:text-amber-200">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" className="bg-red-900 hover:bg-red-800 text-amber-100">Add</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((item) => (
             <Card
-              key={item.name}
+              key={item.id}
               className="overflow-hidden border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
             >
               <CardHeader className="flex items-center justify-between">

@@ -56,3 +56,11 @@ model locations {
   type        String?
   description String?
 }
+
+model items {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String?
+  rarity    String?
+  campaign  String?
+}
