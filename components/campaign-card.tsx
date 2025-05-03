@@ -15,10 +15,21 @@ type Props = {
     players: number
     lastPlayed: Date
     image?: string | null
-  }
+    active: boolean
+  },
+  onStatusChange?: () => void
 }
 
-export default function CampaignCard({ campaign }: Props) {
+export default function CampaignCard({ campaign, onStatusChange }: Props) {
+  const handleToggle = async () => {
+    await fetch(`/api/campaigns/${campaign.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active: !campaign.active }),
+    })
+    if (onStatusChange) onStatusChange()
+  }
+
   return (
     <Card className="overflow-hidden border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20">
         {campaign.image && (
@@ -44,6 +55,12 @@ export default function CampaignCard({ campaign }: Props) {
         </div>
       </CardContent>
       <CardFooter>
+        <button
+          className={`px-2 py-1 rounded mr-2 ${campaign.active ? 'bg-green-600 text-white' : 'bg-gray-400 text-black'}`}
+          onClick={handleToggle}
+        >
+          {campaign.active ? 'Active' : 'Inactive'}
+        </button>
         <Button
           asChild
           variant="outline"

@@ -66,7 +66,9 @@ export default function CampaignsPage() {
                   players: campaign.players_count || 0,
                   lastPlayed: campaign.last_played || new Date(),
                   image: campaign.image_url,
+                  active: campaign.active
                 }}
+                onStatusChange={fetchCampaigns}
               />
             ))
           ) : (
