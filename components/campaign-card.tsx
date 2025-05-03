@@ -32,13 +32,17 @@ export default function CampaignCard({ campaign, onStatusChange }: Props) {
 
   return (
     <Card className="overflow-hidden border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20">
-        {campaign.image && (
-  <img
-    src={campaign.image}
-    alt={campaign.title}
-    className="w-full h-auto rounded border border-amber-800/30"
-  />
-)}
+      {campaign.image ? (
+        <img
+          src={campaign.image}
+          alt={campaign.title}
+          className="w-full h-auto rounded border border-amber-800/30"
+        />
+      ) : (
+        <div className="w-full h-32 flex items-center justify-center bg-amber-100 dark:bg-stone-900 text-amber-400 dark:text-amber-700 border border-amber-800/30 rounded">
+          No Image
+        </div>
+      )}
       <CardHeader>
         <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">
           {campaign.title}

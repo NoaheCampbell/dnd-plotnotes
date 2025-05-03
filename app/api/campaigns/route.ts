@@ -13,13 +13,18 @@ export async function POST(req: Request) {
 
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
-  const imageFile = formData.get("image") as File | null;
+  const imageFile = formData.get("image");
 
   let image_url: string | undefined = undefined;
 
-  if (imageFile && typeof imageFile === "object") {
+  if (
+    imageFile &&
+    typeof imageFile === "object" &&
+    "size" in imageFile &&
+    (imageFile as File).size > 0
+  ) {
     // Convert the image to a buffer
-    const arrayBuffer = await imageFile.arrayBuffer();
+    const arrayBuffer = await (imageFile as File).arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload to Cloudinary
