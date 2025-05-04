@@ -112,31 +112,37 @@ export default function SessionsPage() {
         </TabsList>
 
         <TabsContent value="all" className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sessions.map((session) => (
-            <Card key={session.id} className="bg-parchment-light dark:bg-stone-800">
-              <CardHeader>
-                <CardTitle className="text-amber-900 dark:text-amber-200">{session.campaign}</CardTitle>
-                <CardDescription className="text-amber-800 dark:text-amber-400">
-                  {format(new Date(session.date), "MMMM dd, yyyy")} @ {session.time}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-amber-800 dark:text-amber-400">Location: {session.location}</p>
-                <p className="text-sm text-amber-800 dark:text-amber-400">Players: {session.players?.join(", ")}</p>
-                <p className="text-sm text-amber-800 dark:text-amber-400">Notes: {session.notes}</p>
-              </CardContent>
-              <CardFooter>
-                <Link href={`/sessions/${session.id}`} className="w-full">
-                  <Button
-                    variant="outline"
-                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
-                  >
-                    View Details
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+          {sessions.length > 0 ? (
+            sessions.map((session: Session) => (
+              <Card key={session.id} className="bg-parchment-light dark:bg-stone-800">
+                <CardHeader>
+                  <CardTitle className="text-amber-900 dark:text-amber-200">{session.campaign}</CardTitle>
+                  <CardDescription className="text-amber-800 dark:text-amber-400">
+                    {format(new Date(session.date), "MMMM dd, yyyy")} @ {session.time}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-amber-800 dark:text-amber-400">Location: {session.location}</p>
+                  <p className="text-sm text-amber-800 dark:text-amber-400">Players: {session.players?.join(", ")}</p>
+                  <p className="text-sm text-amber-800 dark:text-amber-400">Notes: {session.notes}</p>
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/sessions/${session.id}`} className="w-full">
+                    <Button
+                      variant="outline"
+                      className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                    >
+                      View Details
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-8">
+              <p className="text-amber-800 dark:text-amber-400 italic">No sessions found.</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

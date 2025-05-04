@@ -110,70 +110,76 @@ export default function ItemsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((item) => (
-            <Card
-              key={item.id}
-              className="overflow-hidden border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
-            >
-              {item.image_url ? (
-                <img
-                  src={item.image_url}
-                  alt={item.name}
-                  className="w-full h-auto rounded border border-amber-800/30"
-                />
-              ) : (
-                <div className="w-full h-32 flex items-center justify-center bg-amber-100 dark:bg-stone-900 text-amber-400 dark:text-amber-700 border border-amber-800/30 rounded">
-                  <Package className="h-12 w-12" />
-                </div>
-              )}
-              <CardHeader className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">
-                    {item.name}
-                  </CardTitle>
-                  <CardDescription className="text-amber-800 dark:text-amber-400">
-                    {item.type} • {item.rarity}
-                  </CardDescription>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+          {filtered.length > 0 ? (
+            filtered.map((item) => (
+              <Card
+                key={item.id}
+                className="overflow-hidden border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
+              >
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="w-full h-auto rounded border border-amber-800/30"
+                  />
+                ) : (
+                  <div className="w-full h-32 flex items-center justify-center bg-amber-100 dark:bg-stone-900 text-amber-400 dark:text-amber-700 border border-amber-800/30 rounded">
+                    <Package className="h-12 w-12" />
+                  </div>
+                )}
+                <CardHeader className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">
+                      {item.name}
+                    </CardTitle>
+                    <CardDescription className="text-amber-800 dark:text-amber-400">
+                      {item.type} • {item.rarity}
+                    </CardDescription>
+                  </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                        <span className="sr-only">Menu</span>
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
                     >
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Menu</span>
+                      <DropdownMenuItem className="text-amber-900 dark:text-amber-200 focus:bg-amber-100/50 focus:text-amber-900 dark:focus:bg-amber-900/30 dark:focus:text-amber-200">
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-amber-900 dark:text-amber-200 focus:bg-amber-100/50 focus:text-amber-900 dark:focus:bg-amber-900/30 dark:focus:text-amber-200">
+                        Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </CardHeader>
+                <CardContent className="text-sm text-amber-800 dark:text-amber-400">
+                  Appears in: {item.campaign}
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/items/${item.id}`} className="w-full">
+                    <Button
+                      variant="outline"
+                      className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                    >
+                      View Details
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
-                  >
-                    <DropdownMenuItem className="text-amber-900 dark:text-amber-200 focus:bg-amber-100/50 focus:text-amber-900 dark:focus:bg-amber-900/30 dark:focus:text-amber-200">
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-amber-900 dark:text-amber-200 focus:bg-amber-100/50 focus:text-amber-900 dark:focus:bg-amber-900/30 dark:focus:text-amber-200">
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </CardHeader>
-              <CardContent className="text-sm text-amber-800 dark:text-amber-400">
-                Appears in: {item.campaign}
-              </CardContent>
-              <CardFooter>
-                <Link href={`/items/${item.id}`} className="w-full">
-                  <Button
-                    variant="outline"
-                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
-                  >
-                    View Details
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-8">
+              <p className="text-amber-800 dark:text-amber-400 italic">No items found.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

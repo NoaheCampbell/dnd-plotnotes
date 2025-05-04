@@ -118,43 +118,49 @@ export default function NpcsPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredNpcs.map((npc) => (
-            <Card
-              key={npc.id || npc.name}
-              className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
-            >
-              <CardHeader>
-                <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">{npc.name}</CardTitle>
-                <CardDescription className="text-amber-800 dark:text-amber-400">
-                  {npc.type || "Type not specified"} • {npc.campaign || ""}
-                </CardDescription>
-                {npc.image_url && (
-                  <div className="mt-2">
-                    <img 
-                      src={npc.image_url} 
-                      alt={npc.name} 
-                      className="w-full h-48 object-cover rounded border border-amber-800/30"
-                    />
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-amber-800 dark:text-amber-400">
-                  {npc.description || "No description available"}
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Link href={`/npcs/${npc.id}`} className="w-full">
-                  <Button
-                    variant="outline"
-                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
-                  >
-                    View Details
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+          {filteredNpcs.length > 0 ? (
+            filteredNpcs.map((npc) => (
+              <Card
+                key={npc.id || npc.name}
+                className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
+              >
+                <CardHeader>
+                  <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">{npc.name}</CardTitle>
+                  <CardDescription className="text-amber-800 dark:text-amber-400">
+                    {npc.type || "Type not specified"} • {npc.campaign || ""}
+                  </CardDescription>
+                  {npc.image_url && (
+                    <div className="mt-2">
+                      <img 
+                        src={npc.image_url} 
+                        alt={npc.name} 
+                        className="w-full h-48 object-cover rounded border border-amber-800/30"
+                      />
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-amber-800 dark:text-amber-400">
+                    {npc.description || "No description available"}
+                  </p>
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/npcs/${npc.id}`} className="w-full">
+                    <Button
+                      variant="outline"
+                      className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                    >
+                      View Details
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-8">
+              <p className="text-amber-800 dark:text-amber-400 italic">No NPCs found.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

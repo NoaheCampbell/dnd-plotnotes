@@ -140,40 +140,48 @@ export default function EncountersPage() {
             <TabsContent value={tab} key={tab} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {filteredEncounters
                 .filter((e) => tab === 'all' || (e.difficulty || '').toLowerCase() === tab)
-                .map((encounter, i) => (
-                  <Card
-                    key={encounter.id || i}
-                    className="overflow-hidden border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
-                  >
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <Skull className="h-4 w-4 text-red-900 dark:text-amber-200" />
-                        <CardTitle className="text-lg font-heading text-amber-900 dark:text-amber-200">
-                          {encounter.title}
-                        </CardTitle>
-                      </div>
-                      <CardDescription className="text-amber-800 dark:text-amber-400">
-                        {encounter.campaign || ''} — {encounter.location || ''}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-sm text-amber-800 dark:text-amber-400">
-                        <p>Difficulty: {encounter.difficulty || 'Unknown'}</p>
-                        <p>Creatures: {encounter.creatures || 'N/A'}</p>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                      <Link href={`/encounters/${encounter.id}`} className="w-full">
-                        <Button
-                          variant="outline"
-                          className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
-                        >
-                          View Encounter
-                        </Button>
-                      </Link>
-                    </CardFooter>
-                  </Card>
-                ))}
+                .length > 0 ? (
+                filteredEncounters
+                  .filter((e) => tab === 'all' || (e.difficulty || '').toLowerCase() === tab)
+                  .map((encounter, i) => (
+                    <Card
+                      key={encounter.id || i}
+                      className="overflow-hidden border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center gap-2">
+                          <Skull className="h-4 w-4 text-red-900 dark:text-amber-200" />
+                          <CardTitle className="text-lg font-heading text-amber-900 dark:text-amber-200">
+                            {encounter.title}
+                          </CardTitle>
+                        </div>
+                        <CardDescription className="text-amber-800 dark:text-amber-400">
+                          {encounter.campaign || ''} — {encounter.location || ''}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-sm text-amber-800 dark:text-amber-400">
+                          <p>Difficulty: {encounter.difficulty || 'Unknown'}</p>
+                          <p>Creatures: {encounter.creatures || 'N/A'}</p>
+                        </div>
+                      </CardContent>
+                      <CardFooter>
+                        <Link href={`/encounters/${encounter.id}`} className="w-full">
+                          <Button
+                            variant="outline"
+                            className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                          >
+                            View Encounter
+                          </Button>
+                        </Link>
+                      </CardFooter>
+                    </Card>
+                  ))
+              ) : (
+                <div className="col-span-full text-center py-8">
+                  <p className="text-amber-800 dark:text-amber-400 italic">No encounters found.</p>
+                </div>
+              )}
             </TabsContent>
           ))}
         </Tabs>

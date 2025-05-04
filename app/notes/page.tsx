@@ -47,99 +47,90 @@ export default function NotesPage() {
   )
 
   return (
-    <div className="flex flex-col">
-      <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-heading font-bold tracking-tight text-amber-900 dark:text-amber-200">Notes</h1>
-            <p className="text-amber-800 dark:text-amber-400 italic">Capture ideas, lore, and everything in between</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-amber-700 dark:text-amber-500" />
-              <Input
-                type="search"
-                placeholder="Search notes..."
-                className="w-[200px] pl-8 md:w-[260px] rounded-full bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-red-900 hover:bg-red-800 text-amber-100">
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Note
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20">
-                <DialogHeader>
-                  <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Add Note</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="campaign_id" className="text-amber-900 dark:text-amber-200">Campaign</Label>
-                    <select name="campaign_id" required className="w-full bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30 text-amber-900 dark:text-amber-200 rounded px-3 py-2">
-                      <option value="">Select a campaign</option>
-                      {campaigns.map((c: any) => (
-                        <option key={c.id} value={c.id}>{c.title}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="title" className="text-amber-900 dark:text-amber-200">Title</Label>
-                    <Input name="title" required className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="content" className="text-amber-900 dark:text-amber-200">Content</Label>
-                    <Textarea name="content" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
-                  </div>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="ghost" className="text-amber-900 dark:text-amber-200">Cancel</Button>
-                    </DialogClose>
-                    <Button type="submit" className="bg-red-900 hover:bg-red-800 text-amber-100">Add</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
+    <div className="p-6 space-y-4">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-heading text-amber-900 dark:text-amber-200">Notes</h1>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-red-900 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              New Note
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+            <DialogHeader>
+              <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Add Note</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="campaign_id" className="text-amber-900 dark:text-amber-200">Campaign</Label>
+                <select name="campaign_id" required className="w-full bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30 text-amber-900 dark:text-amber-200 rounded px-3 py-2">
+                  <option value="">Select a campaign</option>
+                  {campaigns.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="title" className="text-amber-900 dark:text-amber-200">Title</Label>
+                <Input name="title" required className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="content" className="text-amber-900 dark:text-amber-200">Content</Label>
+                <Textarea name="content" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+              </div>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button type="button" variant="ghost" className="text-amber-900 dark:text-amber-200">Cancel</Button>
+                </DialogClose>
+                <Button type="submit" className="bg-red-900 hover:bg-red-800 text-amber-100">Add</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredNotes.map((note) => (
-            <Card
-              key={note.id}
-              className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
-            >
-              <CardHeader className="flex flex-row items-start justify-between space-y-0">
-                <div>
-                  <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">
-                    {note.title}
-                  </CardTitle>
-                  <CardDescription className="text-amber-800 dark:text-amber-400">
-                    {note.campaign || ""} • {note.created_at ? new Date(note.created_at).toLocaleDateString() : "Unknown date"}
-                  </CardDescription>
-                </div>
-                {/* DropdownMenu for edit/delete can be implemented here if needed */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-amber-700 dark:text-amber-500" />
+        <Input
+          type="search"
+          placeholder="Search notes..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-8 rounded-full bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {filteredNotes.length > 0 ? (
+          filteredNotes.map((note) => (
+            <Card key={note.id} className="bg-parchment-light dark:bg-stone-800">
+              <CardHeader>
+                <CardTitle className="text-amber-900 dark:text-amber-200">{note.title}</CardTitle>
+                <CardDescription className="text-amber-800 dark:text-amber-400">
+                  {note.campaign}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-amber-800 dark:text-amber-400">
-                  {note.content ? note.content.substring(0, 100) + (note.content.length > 100 ? "..." : "") : "No content available"}
-                </p>
+                <p className="text-sm text-amber-800 dark:text-amber-400">{note.content}</p>
               </CardContent>
               <CardFooter>
-                <Button
-                  variant="outline"
-                  className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
-                  asChild
-                >
-                  <Link href={`/notes/${note.id}`}>View Note</Link>
-                </Button>
+                <Link href={`/notes/${note.id}`} className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                  >
+                    View Details
+                  </Button>
+                </Link>
               </CardFooter>
             </Card>
-          ))}
-        </div>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-8">
+            <p className="text-amber-800 dark:text-amber-400 italic">No notes found.</p>
+          </div>
+        )}
       </div>
     </div>
   )

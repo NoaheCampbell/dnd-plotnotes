@@ -93,47 +93,53 @@ export default function LocationsPageClient({ initialLocations }: { initialLocat
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {locations.map((location: { id: number; name: string; type: string | null; description: string | null; map_url: string | null }) => (
-            <Card
-              key={location.id}
-              className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
-            >
-              {location.map_url ? (
-                <img
-                  src={location.map_url}
-                  alt={location.name}
-                  className="w-full h-auto rounded border border-amber-800/30"
-                />
-              ) : (
-                <div className="w-full h-32 flex items-center justify-center bg-amber-100 dark:bg-stone-900 text-amber-400 dark:text-amber-700 border border-amber-800/30 rounded">
-                  <Map className="h-12 w-12" />
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">
-                  {location.name}
-                </CardTitle>
-                <CardDescription className="text-amber-800 dark:text-amber-400">
-                  {location.type}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-amber-900 dark:text-amber-200">
-                  {location.description}
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Link href={`/locations/${location.id}`} className="w-full">
-                  <Button
-                    variant="outline"
-                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
-                  >
-                    View Details
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+          {locations.length > 0 ? (
+            locations.map((location: { id: number; name: string; type: string | null; description: string | null; map_url: string | null }) => (
+              <Card
+                key={location.id}
+                className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
+              >
+                {location.map_url ? (
+                  <img
+                    src={location.map_url}
+                    alt={location.name}
+                    className="w-full h-auto rounded border border-amber-800/30"
+                  />
+                ) : (
+                  <div className="w-full h-32 flex items-center justify-center bg-amber-100 dark:bg-stone-900 text-amber-400 dark:text-amber-700 border border-amber-800/30 rounded">
+                    <Map className="h-12 w-12" />
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">
+                    {location.name}
+                  </CardTitle>
+                  <CardDescription className="text-amber-800 dark:text-amber-400">
+                    {location.type}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-amber-900 dark:text-amber-200">
+                    {location.description}
+                  </p>
+                </CardContent>
+                <CardFooter>
+                  <Link href={`/locations/${location.id}`} className="w-full">
+                    <Button
+                      variant="outline"
+                      className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                    >
+                      View Details
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-8">
+              <p className="text-amber-800 dark:text-amber-400 italic">No locations found.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
