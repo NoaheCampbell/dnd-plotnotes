@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { NoteEditModal } from "@/components/note-edit-modal"
+import GenericEntityEditModal from "@/components/generic-entity-edit-modal"
 import { format } from "date-fns"
 
 interface NotePageProps {
@@ -24,6 +24,32 @@ export default async function NoteDetailsPage({ params }: NotePageProps) {
     },
   })
 
+  const config = {
+    api: "/api/notes",
+    label: "Note",
+    fields: [
+      {
+        name: "campaign_id",
+        label: "Campaign",
+        type: "select",
+        required: true,
+        options: campaigns.map(c => ({ value: c.id, label: c.title }))
+      },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true
+      },
+      {
+        name: "content",
+        label: "Content",
+        type: "textarea",
+        required: true
+      }
+    ]
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <Card className="max-w-2xl w-full border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20">
@@ -40,7 +66,15 @@ export default async function NoteDetailsPage({ params }: NotePageProps) {
             {note.content}
           </div>
         </CardContent>
-        <NoteEditModal note={note} campaigns={campaigns} />
+        <div className="mt-4">
+          <GenericEntityEditModal
+            open={false}
+            setOpen={() => {}}
+            config={config}
+            entity={note}
+            onEdited={() => window.location.reload()}
+          />
+        </div>
       </Card>
     </div>
   )

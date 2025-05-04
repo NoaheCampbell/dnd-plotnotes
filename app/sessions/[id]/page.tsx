@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { EditSessionModal } from "@/components/session-edit-modal"
+import EntityActions from "@/components/EntityActions"
+import { entitiesConfig } from "@/lib/entities-config"
 
 interface SessionPageProps {
   params: {
@@ -36,7 +37,7 @@ export default async function SessionDetailsPage({ params }: SessionPageProps) {
           <p><strong>Location:</strong> {session.location || "Unknown"}</p>
           <p><strong>Notes:</strong> {session.notes || "No notes available"}</p>
         </CardContent>
-        <EditSessionModal session={session} />
+        <EntityActions entity={session} config={entitiesConfig.sessions} apiPath="/sessions" />
       </Card>
     </div>
   )

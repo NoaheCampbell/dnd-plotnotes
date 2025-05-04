@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma"
 import { notFound } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { ItemEditModal } from "@/components/item-edit-modal"
+import GenericEntityEditModal from "@/components/generic-entity-edit-modal"
 
 interface ItemPageProps {
   params: { id: string }
@@ -20,6 +20,41 @@ export default async function ItemDetailsPage({ params }: ItemPageProps) {
       title: true,
     },
   })
+
+  const config = {
+    api: "/api/items",
+    label: "Item",
+    fields: [
+      {
+        name: "campaign_id",
+        label: "Campaign",
+        type: "select",
+        required: true,
+        options: campaigns.map(c => ({ value: c.id, label: c.title }))
+      },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true
+      },
+      {
+        name: "type",
+        label: "Type",
+        type: "text"
+      },
+      {
+        name: "rarity",
+        label: "Rarity",
+        type: "text"
+      },
+      {
+        name: "image",
+        label: "Image",
+        type: "file"
+      }
+    ]
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
@@ -57,7 +92,15 @@ export default async function ItemDetailsPage({ params }: ItemPageProps) {
             </div>
           )}
         </CardContent>
-        <ItemEditModal item={item} campaigns={campaigns} />
+        <div className="mt-4">
+          <GenericEntityEditModal
+            open={false}
+            setOpen={() => {}}
+            config={config}
+            entity={item}
+            onEdited={() => window.location.reload()}
+          />
+        </div>
       </Card>
     </div>
   )

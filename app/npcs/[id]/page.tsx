@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { EditNpcModal } from "@/components/npc-edit-modal"
+import { entitiesConfig } from "@/lib/entities-config"
+import EntityActions from "@/components/EntityActions"
 
 interface NpcPageProps {
   params: {
@@ -15,6 +16,7 @@ export default async function NpcDetailsPage({ params }: NpcPageProps) {
     include: { campaigns: true },
   })
   if (!npc) return notFound()
+  const config = entitiesConfig.npcs
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
@@ -40,7 +42,7 @@ export default async function NpcDetailsPage({ params }: NpcPageProps) {
           <p><strong>Type:</strong> {npc.type || "Type not specified"}</p>
           <p><strong>Description:</strong> {npc.description || "No description available"}</p>
         </CardContent>
-        <EditNpcModal npc={npc} />
+        <EntityActions entity={npc} config={config} apiPath="/npcs" />
       </Card>
     </div>
   )

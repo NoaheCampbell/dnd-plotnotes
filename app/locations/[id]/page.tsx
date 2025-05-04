@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { LocationEditModal } from "@/components/location-edit-modal"
+import GenericEntityEditModal from "@/components/generic-entity-edit-modal"
 
 interface LocationPageProps {
   params: {
@@ -22,6 +22,41 @@ export default async function LocationDetailsPage({ params }: LocationPageProps)
       title: true,
     },
   })
+
+  const config = {
+    api: "/api/locations",
+    label: "Location",
+    fields: [
+      {
+        name: "campaign_id",
+        label: "Campaign",
+        type: "select",
+        required: true,
+        options: campaigns.map(c => ({ value: c.id, label: c.title }))
+      },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true
+      },
+      {
+        name: "type",
+        label: "Type",
+        type: "text"
+      },
+      {
+        name: "description",
+        label: "Description",
+        type: "textarea"
+      },
+      {
+        name: "map_url",
+        label: "Map URL",
+        type: "text"
+      }
+    ]
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
@@ -61,7 +96,15 @@ export default async function LocationDetailsPage({ params }: LocationPageProps)
             <p>{location.description || "No description available"}</p>
           </div>
         </CardContent>
-        <LocationEditModal location={location} campaigns={campaigns} />
+        <div className="mt-4">
+          <GenericEntityEditModal
+            open={false}
+            setOpen={() => {}}
+            config={config}
+            entity={location}
+            onEdited={() => window.location.reload()}
+          />
+        </div>
       </Card>
     </div>
   )

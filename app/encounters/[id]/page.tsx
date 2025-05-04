@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { EncounterEditModal } from "@/components/encounter-edit-modal"
+import GenericEntityEditModal from "@/components/generic-entity-edit-modal"
 
 interface EncounterPageProps {
   params: {
@@ -22,6 +22,41 @@ export default async function EncounterDetailsPage({ params }: EncounterPageProp
       title: true,
     },
   })
+
+  const config = {
+    api: "/api/encounters",
+    label: "Encounter",
+    fields: [
+      {
+        name: "campaign_id",
+        label: "Campaign",
+        type: "select",
+        required: true,
+        options: campaigns.map(c => ({ value: c.id, label: c.title }))
+      },
+      {
+        name: "title",
+        label: "Title",
+        type: "text",
+        required: true
+      },
+      {
+        name: "difficulty",
+        label: "Difficulty",
+        type: "text"
+      },
+      {
+        name: "location",
+        label: "Location",
+        type: "text"
+      },
+      {
+        name: "creatures",
+        label: "Number of Creatures",
+        type: "text"
+      }
+    ]
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
@@ -52,7 +87,15 @@ export default async function EncounterDetailsPage({ params }: EncounterPageProp
             </div>
           )}
         </CardContent>
-        <EncounterEditModal encounter={encounter} campaigns={campaigns} />
+        <div className="mt-4">
+          <GenericEntityEditModal
+            open={false}
+            setOpen={() => {}}
+            config={config}
+            entity={encounter}
+            onEdited={() => window.location.reload()}
+          />
+        </div>
       </Card>
     </div>
   )

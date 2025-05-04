@@ -1,5 +1,7 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import Link from "next/link";
+import EntityActions from "@/components/EntityActions";
+import { entitiesConfig } from "@/lib/entities-config";
 
 export default function GenericEntityGrid({ data, config }: { data: any[]; config: any }) {
   if (!data.length) {
@@ -39,9 +41,14 @@ export default function GenericEntityGrid({ data, config }: { data: any[]; confi
                 View Details
               </button>
             </Link>
+            <EntityActions
+              entity={item}
+              config={entitiesConfig[config.label.toLowerCase() as keyof typeof entitiesConfig]}
+              apiPath={`/${config.label.toLowerCase()}`}
+            />
           </CardFooter>
         </Card>
       ))}
     </div>
   );
-} 
+}
