@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Plus, Search, Map } from "lucide-react"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+import Link from "next/link"
 
 export default function LocationsPageClient({ initialLocations }: { initialLocations: any[] }) {
   const [locations, setLocations] = useState(initialLocations)
@@ -121,6 +122,16 @@ export default function LocationsPageClient({ initialLocations }: { initialLocat
                   {location.description}
                 </p>
               </CardContent>
+              <CardFooter>
+                <Link href={`/locations/${location.id}`} className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                  >
+                    View Details
+                  </Button>
+                </Link>
+              </CardFooter>
             </Card>
           ))}
         </div>
