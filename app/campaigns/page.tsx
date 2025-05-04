@@ -81,6 +81,7 @@ export default function CampaignsPage() {
                   active: campaign.active
                 }}
                 onStatusChange={fetchCampaigns}
+                onDelete={fetchCampaigns}
               />
             ))
           ) : (

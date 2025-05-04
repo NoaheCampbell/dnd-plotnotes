@@ -75,3 +75,47 @@ export async function PATCH(
     )
   }
 }
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id)
+    if (isNaN(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
+
+    // Get the campaign to check for image
+    const campaign = await prisma.campaigns.findUnique({
+      where: { id },
+      select: { image_url: true }
+    })
+
+    // If there's an image, delete it from Cloudinary
+    if (campaign?.image_url) {
+      // Extract the public_id from the URL
+      const publicId = campaign.image_url.split('/').pop()?.split('.')[0]
+      if (publicId) {
+        try {
+          await cloudinary.uploader.destroy(publicId)
+        } catch (error) {
+          console.error("Error deleting image from Cloudinary:", error)
+          // Continue with deletion even if image deletion fails
+        }
+      }
+    }
+
+    // First, delete all related data
+    await prisma.$transaction([
+      prisma.notes.deleteMany({ where: { campaign_id: id } }),
+      prisma.sessions.deleteMany({ where: { campaign_id: id } }),
+      prisma.npcs.deleteMany({ where: { campaign_id: id } }),
+      prisma.items.deleteMany({ where: { campaign_id: id } }),
+      prisma.locations.deleteMany({ where: { campaign_id: id } }),
+      prisma.encounters.deleteMany({ where: { campaign_id: id } }),
+      // Finally, delete the campaign
+      prisma.campaigns.delete({ where: { id } })
+    ])
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting campaign:", error)
+    return NextResponse.json({ error: "Failed to delete campaign" }, { status: 500 })
+  }
+}
