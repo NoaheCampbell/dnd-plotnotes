@@ -83,3 +83,18 @@ model encounters {
   creatures   Int?
   campaigns   campaigns? @relation(fields: [campaign_id], references: [id])
 }
+
+model settings {
+  id                Int      @id @default(autoincrement())
+  theme             String   @default("system")
+  session_reminders Boolean  @default(true)
+  campaign_updates  Boolean  @default(true)
+  new_content       Boolean  @default(true)
+  players_count     Int      @default(4)
+  session_duration  Int      @default(3)
+  default_location  String?
+  auto_backup       Boolean  @default(true)
+  backup_frequency  String   @default("daily")
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+}
