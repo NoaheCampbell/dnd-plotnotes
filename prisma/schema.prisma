@@ -21,6 +21,9 @@ model campaigns {
   notes          notes[]
   npcs           npcs[]
   sessions       sessions[]
+  locations      locations[]
+  items          items[]
+  encounters     encounters[]
 }
 
 model notes {
@@ -56,13 +59,26 @@ model locations {
   type        String?
   description String?
   map_url     String?
+  campaign_id Int?
+  campaigns   campaigns? @relation(fields: [campaign_id], references: [id])
 }
 
 model items {
-  id        Int      @id @default(autoincrement())
-  name      String
-  type      String?
-  rarity    String?
-  campaign  String?
-  image_url String?
+  id          Int      @id @default(autoincrement())
+  name        String
+  type        String?
+  rarity      String?
+  image_url   String?
+  campaign_id Int?
+  campaigns   campaigns? @relation(fields: [campaign_id], references: [id])
+}
+
+model encounters {
+  id          Int        @id @default(autoincrement())
+  campaign_id Int?
+  title       String
+  difficulty  String?
+  location    String?
+  creatures   Int?
+  campaigns   campaigns? @relation(fields: [campaign_id], references: [id])
 }
