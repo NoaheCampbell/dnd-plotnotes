@@ -7,7 +7,6 @@ export const entitiesConfig = {
       { name: "name", label: "Name", type: "text", required: true },
       { name: "type", label: "Type", type: "text" },
       { name: "rarity", label: "Rarity", type: "text" },
-      { name: "campaign", label: "Campaign", type: "text" },
       { name: "image", label: "Image", type: "file" },
     ],
     imageField: "image_url",
@@ -20,7 +19,6 @@ export const entitiesConfig = {
     fields: [
       { name: "name", label: "Name", type: "text", required: true },
       { name: "type", label: "Type", type: "text" },
-      { name: "campaign", label: "Campaign", type: "text" },
       { name: "description", label: "Description", type: "text" },
       { name: "image", label: "Image", type: "file" },
     ],
@@ -34,7 +32,6 @@ export const entitiesConfig = {
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
       { name: "content", label: "Content", type: "text" },
-      { name: "campaign", label: "Campaign", type: "text" },
     ],
     imageField: undefined,
     descriptionField: "content",
@@ -58,7 +55,6 @@ export const entitiesConfig = {
     api: "/api/encounters",
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
-      { name: "campaign", label: "Campaign", type: "text" },
       { name: "location", label: "Location", type: "text" },
       { name: "difficulty", label: "Difficulty", type: "text" },
       { name: "creatures", label: "Number of Creatures", type: "text" },
@@ -72,9 +68,8 @@ export const entitiesConfig = {
     subtitle: "Schedule and review your campaign's sessions",
     api: "/api/sessions",
     fields: [
-      { name: "campaign", label: "Campaign", type: "text" },
-      { name: "date", label: "Date", type: "text" },
-      { name: "time", label: "Time", type: "text" },
+      { name: "date", label: "Date", type: "date" },
+      { name: "time", label: "Time", type: "time" },
       { name: "location", label: "Location", type: "text" },
       { name: "notes", label: "Notes", type: "text" },
     ],
@@ -86,6 +81,13 @@ export const entitiesConfig = {
     subtitle: "Manage your epic adventures and quests",
     api: "/api/campaigns",
     fields: [
+      {
+        name: "campaign_id",
+        label: "Parent Campaign",
+        type: "select",
+        required: false,
+        // options will be injected by EntityActions
+      },
       { name: "title", label: "Title", type: "text", required: true },
       { name: "description", label: "Description", type: "text" },
       { name: "image", label: "Image", type: "file" },

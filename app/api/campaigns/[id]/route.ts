@@ -34,6 +34,23 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Try to parse JSON for toggling active
+    let isJson = false;
+    let data: any = {};
+    try {
+      data = await req.json();
+      isJson = true;
+    } catch {
+      // Not JSON, will use formData below
+    }
+    if (isJson && typeof data.active !== "undefined") {
+      const campaign = await prisma.campaigns.update({
+        where: { id: Number(params.id) },
+        data: { active: data.active },
+      });
+      return NextResponse.json(campaign);
+    }
+    // Fallback to formData for other updates
     const formData = await req.formData()
     const title = formData.get("title") as string
     const description = formData.get("description") as string | null

@@ -54,13 +54,31 @@ export default function GenericEntityEditModal({
           {config.fields.map((field: any) => (
             <div className="space-y-2" key={field.name}>
               <Label htmlFor={field.name} className="text-amber-900 dark:text-amber-200">{field.label}</Label>
-              <Input
-                name={field.name}
-                type={field.type}
-                required={field.required}
-                defaultValue={entity[field.name] || ""}
-                className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30"
-              />
+              {field.type === "select" ? (
+                <select
+                  name={field.name}
+                  required={field.required}
+                  defaultValue={entity[field.name] || ""}
+                  className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30 rounded px-3 py-2 w-full"
+                >
+                  <option value="" disabled>
+                    Select a campaign
+                  </option>
+                  {field.options?.map((option: any) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  name={field.name}
+                  type={field.type}
+                  required={field.required}
+                  defaultValue={entity[field.name] || ""}
+                  className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30"
+                />
+              )}
             </div>
           ))}
           <DialogFooter>

@@ -20,13 +20,15 @@ interface EntityActionsProps {
   }
   apiPath: string
   onDeleted?: () => void
+  editOpen: boolean
+  setEditOpen: (open: boolean) => void
+  deleteOpen: boolean
+  setDeleteOpen: (open: boolean) => void
+  deleting: boolean
+  setDeleting: (deleting: boolean) => void
 }
 
-export default function EntityActions({ entity, campaigns = [], config, apiPath, onDeleted }: EntityActionsProps) {
-  const [editOpen, setEditOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-
+export default function EntityActions({ entity, campaigns = [], config, apiPath, onDeleted, editOpen, setEditOpen, deleteOpen, setDeleteOpen, deleting, setDeleting }: EntityActionsProps) {
   // Add campaign_id field to config if it doesn't exist
   const fullConfig = {
     ...config,
@@ -71,21 +73,6 @@ export default function EntityActions({ entity, campaigns = [], config, apiPath,
 
   return (
     <>
-      <div className="flex gap-2 mt-4">
-        <Button
-          onClick={() => setEditOpen(true)}
-          className="bg-amber-800 text-amber-100 hover:bg-amber-700"
-        >
-          Edit
-        </Button>
-        <Button
-          onClick={() => setDeleteOpen(true)}
-          className="bg-red-900 text-amber-100 hover:bg-red-800"
-          disabled={deleting}
-        >
-          {deleting ? "Deleting..." : "Delete"}
-        </Button>
-      </div>
       <GenericEntityEditModal
         open={editOpen}
         setOpen={setEditOpen}
@@ -105,9 +92,21 @@ export default function EntityActions({ entity, campaigns = [], config, apiPath,
             <DialogClose asChild>
               <Button variant="outline" className="text-amber-900 dark:text-amber-200 border-amber-800/30">Cancel</Button>
             </DialogClose>
-            <Button onClick={handleDelete} className="bg-red-900 hover:bg-red-800 text-amber-100" disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete"}
-            </Button>
+            <div className="flex gap-2 h-full items-stretch">
+              <Button
+                onClick={() => setEditOpen(true)}
+                className="h-10 min-w-[56px] bg-amber-800 text-amber-100 hover:bg-amber-700"
+              >
+                Edit
+              </Button>
+              <Button
+                onClick={handleDelete}
+                className="h-10 min-w-[56px] bg-red-900 text-amber-100 hover:bg-red-800"
+                disabled={deleting}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -3,8 +3,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRef } from "react";
 
-export default function GenericEntityForm({ open, setOpen, config, onCreated }: { open: boolean; setOpen: (v: boolean) => void; config: any; onCreated: (item: any) => void }) {
+export default function GenericEntityForm({ open, setOpen, config, onCreated, campaigns = [] }: { open: boolean; setOpen: (v: boolean) => void; config: any; onCreated: (item: any) => void; campaigns?: any[] }) {
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Inject campaign_id select field for non-campaign entities
+  const fields = [
+    ...(config.label !== "Campaigns"
+      ? [{
+          name: "campaign_id",
+          label: "Campaign",
+          type: "select",
+          required: true,
+          options: campaigns.map((c: any) => ({ value: c.id, label: c.title }))
+        }]
+      : []),
+    ...config.fields
+  ];
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,15 +47,33 @@ export default function GenericEntityForm({ open, setOpen, config, onCreated }: 
           </DialogTitle>
         </DialogHeader>
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
-          {config.fields.map((field: any) => (
+          {fields.map((field: any) => (
             <div className="space-y-2" key={field.name}>
               <Label htmlFor={field.name} className="text-amber-900 dark:text-amber-200">{field.label}</Label>
-              <Input
-                name={field.name}
-                type={field.type}
-                required={field.required}
-                className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30"
-              />
+              {field.type === "select" ? (
+                <select
+                  name={field.name}
+                  required={field.required}
+                  defaultValue=""
+                  className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30 rounded px-3 py-2 w-full"
+                >
+                  <option value="" disabled>
+                    Select a campaign
+                  </option>
+                  {field.options?.map((option: any) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  name={field.name}
+                  type={field.type}
+                  required={field.required}
+                  className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30"
+                />
+              )}
             </div>
           ))}
           <DialogFooter>

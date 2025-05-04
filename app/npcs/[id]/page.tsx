@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { entitiesConfig } from "@/lib/entities-config"
 import EntityActions from "@/components/EntityActions"
+import { useState } from "react"
 
 interface NpcPageProps {
   params: {
@@ -17,6 +18,11 @@ export default async function NpcDetailsPage({ params }: NpcPageProps) {
   })
   if (!npc) return notFound()
   const config = entitiesConfig.npcs
+
+  // Add local state for modal/dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
@@ -42,7 +48,17 @@ export default async function NpcDetailsPage({ params }: NpcPageProps) {
           <p><strong>Type:</strong> {npc.type || "Type not specified"}</p>
           <p><strong>Description:</strong> {npc.description || "No description available"}</p>
         </CardContent>
-        <EntityActions entity={npc} config={config} apiPath="/npcs" />
+        <EntityActions 
+          entity={npc} 
+          config={config} 
+          apiPath="/npcs"
+          editOpen={editOpen}
+          setEditOpen={setEditOpen}
+          deleteOpen={deleteOpen}
+          setDeleteOpen={setDeleteOpen}
+          deleting={deleting}
+          setDeleting={setDeleting}
+        />
       </Card>
     </div>
   )
