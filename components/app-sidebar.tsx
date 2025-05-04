@@ -13,6 +13,7 @@ import {
   Settings,
   Skull,
   Users,
+  Clock,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -31,41 +32,49 @@ const sidebarLinks = [
     title: "Campaigns",
     href: "/campaigns",
     icon: BookOpen,
+    color: "text-amber-200",
   },
   {
     title: "Sessions",
     href: "/sessions",
     icon: Calendar,
+    color: "text-amber-200",
   },
   {
     title: "NPCs",
     href: "/npcs",
     icon: Users,
+    color: "text-amber-200",
   },
   {
     title: "Locations",
     href: "/locations",
     icon: Compass,
+    color: "text-amber-200",
   },
   {
     title: "Encounters",
     href: "/encounters",
     icon: Skull,
+    color: "text-amber-200",
   },
   {
     title: "Items",
     href: "/items",
     icon: Dice,
+    color: "text-amber-200",
   },
   {
     title: "Notes",
     href: "/notes",
     icon: PenTool,
+    color: "text-amber-200",
   },
   {
     title: "Settings",
     href: "/settings",
     icon: Settings,
+    color: "text-amber-200",
   },
 ]
 
@@ -118,14 +127,14 @@ export function AppSidebar() {
                 key={link.href}
                 variant={pathname === link.href ? "secondary" : "ghost"}
                 className={cn(
-                  "justify-start gap-3 px-3 text-amber-900 dark:text-amber-200 hover:bg-amber-100/20 dark:hover:bg-amber-900/20",
+                  "justify-start gap-3 px-3 text-amber-200 hover:bg-amber-100/20 dark:hover:bg-amber-900/20",
                   pathname === link.href &&
                     "bg-amber-100/30 text-amber-900 hover:bg-amber-100/30 dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/30",
                 )}
                 asChild
               >
                 <Link href={link.href}>
-                  <link.icon className="h-5 w-5" />
+                  <link.icon className={cn("h-5 w-5", link.color)} />
                   <span className="font-medium">{link.title}</span>
                 </Link>
               </Button>
@@ -141,7 +150,7 @@ export function AppSidebar() {
                 <li key={campaign}>
                   <Button
                     variant="ghost"
-                    className="w-full justify-start text-sm font-normal text-amber-900 dark:text-amber-200 hover:bg-amber-100/20 dark:hover:bg-amber-900/20"
+                    className="w-full justify-start text-sm font-normal text-amber-200 hover:bg-amber-100/20 dark:hover:bg-amber-900/20"
                     asChild
                   >
                     <Link href={`/campaigns/${campaign.toLowerCase().replace(/\s+/g, "-")}`}>{campaign}</Link>
@@ -158,7 +167,7 @@ export function AppSidebar() {
               <span className="font-medium text-amber-200">DM</span>
             </div>
             <div>
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Dungeon Master</p>
+              <p className="text-sm font-medium text-amber-200">Dungeon Master</p>
               <p className="text-xs text-amber-800 dark:text-amber-400">Archmage Tier</p>
             </div>
           </div>

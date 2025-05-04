@@ -7,8 +7,20 @@ import { Plus, Search } from "lucide-react"
 import CampaignCard from "@/components/campaign-card"
 import { NewCampaignModal } from "@/components/modals/new-campaign-modal"
 
+interface Campaign {
+  id: number
+  title: string
+  description: string
+  progress: number
+  sessions_count: number
+  players_count: number
+  last_played: Date
+  image_url: string | null
+  active: boolean
+}
+
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [search, setSearch] = useState("")
 
   const fetchCampaigns = async () => {
@@ -21,7 +33,7 @@ export default function CampaignsPage() {
     fetchCampaigns()
   }, [])
 
-  const filteredCampaigns = campaigns.filter((campaign: any) =>
+  const filteredCampaigns = campaigns.filter((campaign) =>
     campaign.title.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -54,7 +66,7 @@ export default function CampaignsPage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredCampaigns.length > 0 ? (
-            filteredCampaigns.map((campaign: any) => (
+            filteredCampaigns.map((campaign) => (
               <CampaignCard
                 key={campaign.id}
                 campaign={{
