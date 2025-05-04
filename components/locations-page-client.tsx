@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, Map } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 
 export default function LocationsPageClient({ initialLocations }: { initialLocations: any[] }) {
@@ -75,6 +75,10 @@ export default function LocationsPageClient({ initialLocations }: { initialLocat
                     <Label htmlFor="description" className="text-amber-900 dark:text-amber-200">Description</Label>
                     <Input name="description" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="map" className="text-amber-900 dark:text-amber-200">Map</Label>
+                    <Input type="file" name="map" accept="image/*" className="cursor-pointer text-amber-900 dark:text-amber-200" />
+                  </div>
                   <DialogFooter>
                     <DialogClose asChild>
                       <Button type="button" variant="ghost" className="text-amber-900 dark:text-amber-200">Cancel</Button>
@@ -88,11 +92,22 @@ export default function LocationsPageClient({ initialLocations }: { initialLocat
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {locations.map((location: { id: number; name: string; type: string | null; description: string | null }) => (
+          {locations.map((location: { id: number; name: string; type: string | null; description: string | null; map_url: string | null }) => (
             <Card
               key={location.id}
               className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
             >
+              {location.map_url ? (
+                <img
+                  src={location.map_url}
+                  alt={location.name}
+                  className="w-full h-auto rounded border border-amber-800/30"
+                />
+              ) : (
+                <div className="w-full h-32 flex items-center justify-center bg-amber-100 dark:bg-stone-900 text-amber-400 dark:text-amber-700 border border-amber-800/30 rounded">
+                  <Map className="h-12 w-12" />
+                </div>
+              )}
               <CardHeader>
                 <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">
                   {location.name}

@@ -55,6 +55,7 @@ model locations {
   name        String
   type        String?
   description String?
+  map_url     String?
 }
 
 model items {
@@ -63,4 +64,5 @@ model items {
   type      String?
   rarity    String?
   campaign  String?
+  image_url String?
 }
