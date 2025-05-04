@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { CalendarIcon, ClockIcon, PlusIcon, UsersIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
+import Link from "next/link";
 
 interface Session {
   id: number;
@@ -124,6 +125,16 @@ export default function SessionsPage() {
                 <p className="text-sm text-amber-800 dark:text-amber-400">Players: {session.players?.join(", ")}</p>
                 <p className="text-sm text-amber-800 dark:text-amber-400">Notes: {session.notes}</p>
               </CardContent>
+              <CardFooter>
+                <Link href={`/sessions/${session.id}`} className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                  >
+                    View Details
+                  </Button>
+                </Link>
+              </CardFooter>
             </Card>
           ))}
         </TabsContent>

@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Plus, Search } from "lucide-react"
+import Link from "next/link"
 
 export default function NpcsPage() {
   const [search, setSearch] = useState("")
@@ -123,6 +124,16 @@ export default function NpcsPage() {
                   {npc.description || "No description available"}
                 </p>
               </CardContent>
+              <CardFooter>
+                <Link href={`/npcs/${npc.id}`} className="w-full">
+                  <Button
+                    variant="outline"
+                    className="w-full border-amber-800/30 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:border-amber-800/20 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
+                  >
+                    View Details
+                  </Button>
+                </Link>
+              </CardFooter>
             </Card>
           ))}
         </div>

@@ -1,41 +1,49 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, PenTool, Plus, Search } from "lucide-react"
 
-const notes = [
-  {
-    id: 1,
-    title: "Strahd's Weaknesses",
-    campaign: "Curse of Strahd",
-    lastUpdated: "2 days ago",
-  },
-  {
-    id: 2,
-    title: "Giant Rune Lore",
-    campaign: "Storm King's Thunder",
-    lastUpdated: "1 week ago",
-  },
-  {
-    id: 3,
-    title: "New Magic Item Ideas",
-    campaign: "Homebrew Campaign",
-    lastUpdated: "4 days ago",
-  },
-]
-
 export default function NotesPage() {
   const [searchTerm, setSearchTerm] = useState("")
+  const [notes, setNotes] = useState<any[]>([])
+  const [campaigns, setCampaigns] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/notes").then(res => res.json()).then(setNotes)
+    fetch("/api/campaigns").then(res => res.json()).then(setCampaigns)
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const res = await fetch("/api/notes", {
+      method: "POST",
+      body: formData,
+    })
+    if (res.ok) {
+      setOpen(false)
+      form.reset()
+      const newNote = await res.json()
+      setNotes([...notes, newNote])
+    } else {
+      alert("Failed to add note")
+    }
+  }
 
   const filteredNotes = notes.filter(
     (note) =>
       note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      note.campaign.toLowerCase().includes(searchTerm.toLowerCase())
+      (note.campaign || "").toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
@@ -57,10 +65,44 @@ export default function NotesPage() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button className="bg-red-900 hover:bg-red-800 text-amber-100">
-              <Plus className="mr-2 h-4 w-4" />
-              New Note
-            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-red-900 hover:bg-red-800 text-amber-100">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Note
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+                <DialogHeader>
+                  <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Add Note</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign_id" className="text-amber-900 dark:text-amber-200">Campaign</Label>
+                    <select name="campaign_id" required className="w-full bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30 text-amber-900 dark:text-amber-200 rounded px-3 py-2">
+                      <option value="">Select a campaign</option>
+                      {campaigns.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="title" className="text-amber-900 dark:text-amber-200">Title</Label>
+                    <Input name="title" required className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="content" className="text-amber-900 dark:text-amber-200">Content</Label>
+                    <Textarea name="content" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="ghost" className="text-amber-900 dark:text-amber-200">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" className="bg-red-900 hover:bg-red-800 text-amber-100">Add</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
@@ -76,36 +118,14 @@ export default function NotesPage() {
                     {note.title}
                   </CardTitle>
                   <CardDescription className="text-amber-800 dark:text-amber-400">
-                    {note.campaign} • Updated {note.lastUpdated}
+                    {note.campaign || ""} • {note.created_at ? new Date(note.created_at).toLocaleDateString() : "Unknown date"}
                   </CardDescription>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-amber-900 hover:bg-amber-100/50 hover:text-amber-900 dark:text-amber-200 dark:hover:bg-amber-900/30 dark:hover:text-amber-200"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Menu</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
-                  >
-                    <DropdownMenuItem className="text-amber-900 dark:text-amber-200 focus:bg-amber-100/50 focus:text-amber-900 dark:focus:bg-amber-900/30 dark:focus:text-amber-200">
-                      Edit Note
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-amber-900 dark:text-amber-200 focus:bg-amber-100/50 focus:text-amber-900 dark:focus:bg-amber-900/30 dark:focus:text-amber-200">
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {/* DropdownMenu for edit/delete can be implemented here if needed */}
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-amber-800 dark:text-amber-400">
-                  This is a brief preview or summary of the note’s content...
+                  {note.content ? note.content.substring(0, 100) + (note.content.length > 100 ? "..." : "") : "No content available"}
                 </p>
               </CardContent>
               <CardFooter>
