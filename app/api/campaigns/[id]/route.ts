@@ -39,7 +39,12 @@ export async function PATCH(
     const description = formData.get("description") as string | null
     const imageFile = formData.get("image")
 
+    // Get the old image_url
+    const oldCampaign = await prisma.campaigns.findUnique({ where: { id: Number(params.id) }, select: { image_url: true } })
+    const oldImageUrl = oldCampaign?.image_url
+
     let image_url: string | undefined = undefined
+    let image_public_id: string | undefined = undefined
     if (
       imageFile &&
       typeof imageFile === "object" &&
@@ -48,13 +53,14 @@ export async function PATCH(
     ) {
       const arrayBuffer = await (imageFile as File).arrayBuffer()
       const buffer = Buffer.from(arrayBuffer)
-      const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+      const uploadResult = await new Promise<any>((resolve, reject) => {
         cloudinary.uploader.upload_stream({ resource_type: "image" }, (err, result) => {
           if (err || !result) return reject(err)
-          resolve(result as any)
+          resolve(result)
         }).end(buffer)
       })
       image_url = uploadResult.secure_url
+      image_public_id = uploadResult.public_id
     }
 
     const campaign = await prisma.campaigns.update({
@@ -63,8 +69,22 @@ export async function PATCH(
         title,
         description,
         ...(image_url && { image_url }),
+        ...(image_public_id && { image_public_id }),
       },
     })
+
+    // Delete the old image from Cloudinary if a new one was uploaded
+    if (image_url && oldImageUrl) {
+      // Extract the public_id from the old image_url
+      const publicId = oldImageUrl.split('/').pop()?.split('.')[0]
+      if (publicId) {
+        try {
+          await cloudinary.uploader.destroy(publicId)
+        } catch (error) {
+          console.error("Error deleting old image from Cloudinary:", error)
+        }
+      }
+    }
 
     return NextResponse.json(campaign)
   } catch (error) {

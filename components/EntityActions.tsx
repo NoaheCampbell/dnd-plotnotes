@@ -3,6 +3,7 @@
 import { useState } from "react"
 import GenericEntityEditModal from "@/components/generic-entity-edit-modal"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 
 interface EntityActionsProps {
   entity: any
@@ -24,33 +25,36 @@ interface EntityActionsProps {
 export default function EntityActions({ entity, campaigns = [], config, apiPath, onDeleted }: EntityActionsProps) {
   const [editOpen, setEditOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   // Add campaign_id field to config if it doesn't exist
   const fullConfig = {
     ...config,
     api: `/api${apiPath}`,
     fields: [
-      {
-        name: "campaign_id",
-        label: "Campaign",
-        type: "select",
-        required: true,
-        options: campaigns.map(c => ({ value: c.id, label: c.title }))
-      },
+      // Only add campaign_id select if not editing a campaign itself
+      ...(config.label !== "Campaigns"
+        ? [{
+            name: "campaign_id",
+            label: "Campaign",
+            type: "select",
+            required: true,
+            options: campaigns.map(c => ({ value: c.id, label: c.title }))
+          }]
+        : []),
       ...config.fields,
-      {
-        name: "image",
-        label: "Image",
-        type: "file"
-      }
+      // Only add the image field if not already present
+      ...(!config.fields.some(f => f.name === "image")
+        ? [{ name: "image", label: "Image", type: "file" }]
+        : [])
     ]
   }
 
   async function handleDelete() {
-    if (!confirm("Are you sure you want to delete this?")) return
     setDeleting(true)
     await fetch(`/api${apiPath}/${entity.id}`, { method: "DELETE" })
     setDeleting(false)
+    setDeleteOpen(false)
     if (onDeleted) onDeleted()
     else {
       // Redirect to the entity list page based on fullConfig.api, using /entities/[entity]
@@ -75,7 +79,7 @@ export default function EntityActions({ entity, campaigns = [], config, apiPath,
           Edit
         </Button>
         <Button
-          onClick={handleDelete}
+          onClick={() => setDeleteOpen(true)}
           className="bg-red-900 text-amber-100 hover:bg-red-800"
           disabled={deleting}
         >
@@ -89,6 +93,24 @@ export default function EntityActions({ entity, campaigns = [], config, apiPath,
         entity={entity}
         onEdited={() => window.location.reload()}
       />
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+          <DialogHeader>
+            <DialogTitle className="text-amber-900 dark:text-amber-200">Delete {config.label.slice(0, -1)}</DialogTitle>
+            <DialogDescription className="text-amber-800 dark:text-amber-400">
+              Are you sure you want to delete "{entity.title || entity.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" className="text-amber-900 dark:text-amber-200 border-amber-800/30">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleDelete} className="bg-red-900 hover:bg-red-800 text-amber-100" disabled={deleting}>
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 } 

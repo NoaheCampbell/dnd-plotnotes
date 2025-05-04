@@ -3,8 +3,12 @@ import { NextResponse } from "next/server"
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const id = Number(params.id)
-  const data = await req.json()
-  const { campaign_id, title, difficulty, location, creatures } = data
+  const formData = await req.formData()
+  const campaign_id = formData.get("campaign_id") as string | null
+  const title = formData.get("title") as string | null
+  const difficulty = formData.get("difficulty") as string | null
+  const location = formData.get("location") as string | null
+  const creatures = formData.get("creatures") as string | null
 
   if (!campaign_id || !title) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
