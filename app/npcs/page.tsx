@@ -1,24 +1,45 @@
 "use client";
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Plus, Search } from "lucide-react"
-
-const initialNpcs = [
-  { name: "Strahd von Zarovich", type: "Vampire Lord", campaign: "Curse of Strahd" },
-  { name: "Ireena Kolyana", type: "Noble", campaign: "Curse of Strahd" },
-  { name: "Harshnag", type: "Frost Giant", campaign: "Storm King's Thunder" },
-  { name: "Kellen Brightspark", type: "Artificer", campaign: "Homebrew Campaign" },
-]
 
 export default function NpcsPage() {
   const [search, setSearch] = useState("")
+  const [npcs, setNpcs] = useState<any[]>([])
+  const [campaigns, setCampaigns] = useState<any[]>([])
+  const [open, setOpen] = useState(false)
 
-  const filteredNpcs = initialNpcs.filter((npc) =>
+  useEffect(() => {
+    fetch("/api/npcs").then(res => res.json()).then(setNpcs)
+    fetch("/api/campaigns").then(res => res.json()).then(setCampaigns)
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const res = await fetch("/api/npcs", {
+      method: "POST",
+      body: formData,
+    })
+    if (res.ok) {
+      setOpen(false)
+      form.reset()
+      const newNpc = await res.json()
+      setNpcs([...npcs, newNpc])
+    } else {
+      alert("Failed to add NPC")
+    }
+  }
+
+  const filteredNpcs = npcs.filter((npc) =>
     npc.name.toLowerCase().includes(search.toLowerCase()) ||
-    npc.type.toLowerCase().includes(search.toLowerCase()) ||
-    npc.campaign.toLowerCase().includes(search.toLowerCase())
+    (npc.type || "").toLowerCase().includes(search.toLowerCase()) ||
+    (npc.campaign || "").toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -40,28 +61,66 @@ export default function NpcsPage() {
                 className="w-[200px] pl-8 md:w-[260px] rounded-full bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
               />
             </div>
-            <Button className="bg-red-900 hover:bg-red-800 text-amber-100">
-              <Plus className="mr-2 h-4 w-4" />
-              New NPC
-            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-red-900 hover:bg-red-800 text-amber-100">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New NPC
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+                <DialogHeader>
+                  <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Add NPC</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="campaign_id" className="text-amber-900 dark:text-amber-200">Campaign</Label>
+                    <select name="campaign_id" required className="w-full bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30 text-amber-900 dark:text-amber-200 rounded px-3 py-2">
+                      <option value="">Select a campaign</option>
+                      {campaigns.map((c: any) => (
+                        <option key={c.id} value={c.id}>{c.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-amber-900 dark:text-amber-200">Name</Label>
+                    <Input name="name" required className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="type" className="text-amber-900 dark:text-amber-200">Type</Label>
+                    <Input name="type" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description" className="text-amber-900 dark:text-amber-200">Description</Label>
+                    <Input name="description" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
+                  </div>
+                  <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="ghost" className="text-amber-900 dark:text-amber-200">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit" className="bg-red-900 hover:bg-red-800 text-amber-100">Add</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredNpcs.map((npc) => (
             <Card
-              key={npc.name}
+              key={npc.id || npc.name}
               className="border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20"
             >
               <CardHeader>
                 <CardTitle className="text-amber-900 dark:text-amber-200 font-heading">{npc.name}</CardTitle>
                 <CardDescription className="text-amber-800 dark:text-amber-400">
-                  {npc.type} • {npc.campaign}
+                  {npc.type || "Type not specified"} • {npc.campaign || ""}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-amber-800 dark:text-amber-400">
-                  This NPC plays a role in the {npc.campaign} campaign as a {npc.type}.
+                  {npc.description || "No description available"}
                 </p>
               </CardContent>
             </Card>
