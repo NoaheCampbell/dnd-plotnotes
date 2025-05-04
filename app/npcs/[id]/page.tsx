@@ -26,6 +26,15 @@ export default async function NpcDetailsPage({ params }: NpcPageProps) {
           <CardDescription className="text-amber-800 dark:text-amber-400">
             Campaign: {npc.campaigns?.title || "Unknown"}
           </CardDescription>
+          {(npc as any).image_url && (
+            <div className="mt-4">
+              <img 
+                src={(npc as any).image_url} 
+                alt={npc.name} 
+                className="w-full max-w-md mx-auto h-64 object-cover rounded border border-amber-800/30"
+              />
+            </div>
+          )}
         </CardHeader>
         <CardContent className="text-amber-900 dark:text-amber-200 space-y-2">
           <p><strong>Type:</strong> {npc.type || "Type not specified"}</p>

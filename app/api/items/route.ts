@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       name,
       type,
       rarity,
-      campaign,
+      campaign_id: campaign ? Number(campaign) : null,
       image_url,
     },
   })

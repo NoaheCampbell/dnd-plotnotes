@@ -95,6 +95,16 @@ export default function NpcsPage() {
                     <Label htmlFor="description" className="text-amber-900 dark:text-amber-200">Description</Label>
                     <Input name="description" className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30" />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="image" className="text-amber-900 dark:text-amber-200">Image</Label>
+                    <Input 
+                      id="image" 
+                      name="image" 
+                      type="file" 
+                      accept="image/*"
+                      className="bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30"
+                    />
+                  </div>
                   <DialogFooter>
                     <DialogClose asChild>
                       <Button type="button" variant="ghost" className="text-amber-900 dark:text-amber-200">Cancel</Button>
@@ -118,6 +128,15 @@ export default function NpcsPage() {
                 <CardDescription className="text-amber-800 dark:text-amber-400">
                   {npc.type || "Type not specified"} • {npc.campaign || ""}
                 </CardDescription>
+                {npc.image_url && (
+                  <div className="mt-2">
+                    <img 
+                      src={npc.image_url} 
+                      alt={npc.name} 
+                      className="w-full h-48 object-cover rounded border border-amber-800/30"
+                    />
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-amber-800 dark:text-amber-400">

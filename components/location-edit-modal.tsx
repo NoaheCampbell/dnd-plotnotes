@@ -14,8 +14,8 @@ export function LocationEditModal({ location, campaigns }: { location: any, camp
     name: location.name || '',
     type: location.type || '',
     description: location.description || '',
-    map_url: location.map_url || '',
   })
+  const [mapFile, setMapFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,15 +23,30 @@ export function LocationEditModal({ location, campaigns }: { location: any, camp
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
+  const handleMapChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setMapFile(e.target.files[0])
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
     setError(null)
     try {
+      const formData = new FormData()
+      Object.entries(form).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formData.append(key, value.toString())
+        }
+      })
+      if (mapFile) {
+        formData.append('map', mapFile)
+      }
+
       const response = await fetch(`/api/locations/${location.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: formData,
       })
       if (!response.ok) {
         const error = await response.json()
@@ -54,7 +69,7 @@ export function LocationEditModal({ location, campaigns }: { location: any, camp
             Edit
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+        <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Edit Location</DialogTitle>
           </DialogHeader>
@@ -86,8 +101,20 @@ export function LocationEditModal({ location, campaigns }: { location: any, camp
               <Textarea id="description" name="description" value={form.description} onChange={handleChange} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200 min-h-[120px]" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="map_url">Map URL</Label>
-              <Input id="map_url" name="map_url" value={form.map_url} onChange={handleChange} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200" />
+              <Label htmlFor="map">Map</Label>
+              <Input 
+                id="map" 
+                name="map" 
+                type="file" 
+                accept="image/*"
+                onChange={handleMapChange}
+                className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200"
+              />
+              {location.map_url && !mapFile && (
+                <div className="mt-2">
+                  <img src={location.map_url} alt="Current map" className="max-w-xs rounded border border-amber-800/30" />
+                </div>
+              )}
             </div>
             <DialogFooter>
               <DialogClose asChild>

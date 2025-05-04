@@ -5,21 +5,19 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 
-export function ItemEditModal({ item, campaigns }: { item: any, campaigns: any[] }) {
+export function CampaignEditModal({ campaign }: { campaign: any }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
-    campaign_id: item.campaign_id,
-    name: item.name || '',
-    type: item.type || '',
-    rarity: item.rarity || '',
-    image_url: item.image_url || '',
+    title: campaign.title || '',
+    description: campaign.description || '',
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
@@ -44,13 +42,13 @@ export function ItemEditModal({ item, campaigns }: { item: any, campaigns: any[]
         formData.append('image', imageFile)
       }
 
-      const response = await fetch(`/api/items/${item.id}`, {
+      const response = await fetch(`/api/campaigns/${campaign.id}`, {
         method: "PATCH",
         body: formData,
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "Failed to update item")
+        throw new Error(error.error || "Failed to update campaign")
       }
       setOpen(false)
       window.location.reload()
@@ -71,7 +69,7 @@ export function ItemEditModal({ item, campaigns }: { item: any, campaigns: any[]
         </DialogTrigger>
         <DialogContent className="sm:max-w-lg bg-parchment-light dark:bg-stone-800 border-amber-800/20 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Edit Item</DialogTitle>
+            <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">Edit Campaign</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
@@ -80,25 +78,12 @@ export function ItemEditModal({ item, campaigns }: { item: any, campaigns: any[]
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="campaign_id">Campaign</Label>
-              <select name="campaign_id" value={form.campaign_id} onChange={handleChange} required className="w-full bg-amber-50/50 border-amber-800/30 dark:bg-amber-900/20 dark:border-amber-800/30 text-amber-900 dark:text-amber-200 rounded px-3 py-2">
-                <option value="">Select a campaign</option>
-                {campaigns.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.title}</option>
-                ))}
-              </select>
+              <Label htmlFor="title">Title</Label>
+              <Input id="title" name="title" value={form.title} onChange={handleChange} required className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" name="name" value={form.name} onChange={handleChange} required className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="type">Type</Label>
-              <Input id="type" name="type" value={form.type} onChange={handleChange} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="rarity">Rarity</Label>
-              <Input id="rarity" name="rarity" value={form.rarity} onChange={handleChange} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200" />
+              <Label htmlFor="description">Description</Label>
+              <Textarea id="description" name="description" value={form.description} onChange={handleChange} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200 min-h-[120px]" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="image">Image</Label>
@@ -110,9 +95,9 @@ export function ItemEditModal({ item, campaigns }: { item: any, campaigns: any[]
                 onChange={handleImageChange}
                 className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30 text-amber-900 dark:text-amber-200"
               />
-              {form.image_url && !imageFile && (
+              {campaign.image_url && !imageFile && (
                 <div className="mt-2">
-                  <img src={form.image_url} alt="Current item" className="max-w-xs rounded border border-amber-800/30" />
+                  <img src={campaign.image_url} alt="Current campaign" className="max-w-xs rounded border border-amber-800/30" />
                 </div>
               )}
             </div>

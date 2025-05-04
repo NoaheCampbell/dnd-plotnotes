@@ -1,39 +1,60 @@
-import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { v2 as cloudinary } from "cloudinary"
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const id = Number(params.id)
-  const data = await req.json()
-  const { campaign_id, name, type, rarity, image_url } = data
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+})
 
-  if (!campaign_id || !name) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-  }
-
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
   try {
+    const formData = await req.formData()
+    const name = formData.get("name") as string
+    const type = formData.get("type") as string | null
+    const rarity = formData.get("rarity") as string | null
+    const campaign_id = formData.get("campaign_id") as string | null
+    const imageFile = formData.get("image")
+
+    let image_url: string | undefined = undefined
+    if (
+      imageFile &&
+      typeof imageFile === "object" &&
+      "size" in imageFile &&
+      (imageFile as File).size > 0
+    ) {
+      const arrayBuffer = await (imageFile as File).arrayBuffer()
+      const buffer = Buffer.from(arrayBuffer)
+      const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
+        cloudinary.uploader.upload_stream({ resource_type: "image" }, (err, result) => {
+          if (err || !result) return reject(err)
+          resolve(result as any)
+        }).end(buffer)
+      })
+      image_url = uploadResult.secure_url
+    }
+
     const item = await prisma.items.update({
-      where: { id },
+      where: { id: Number(params.id) },
       data: {
-        campaign_id: Number(campaign_id),
         name,
-        type: type || null,
-        rarity: rarity || null,
-        image_url: image_url || null,
-      },
-      include: {
-        campaigns: true,
+        type,
+        rarity,
+        campaign_id: campaign_id ? Number(campaign_id) : null,
+        ...(image_url && { image_url }),
       },
     })
-    return NextResponse.json({
-      id: item.id,
-      name: item.name,
-      type: item.type,
-      rarity: item.rarity,
-      image_url: item.image_url,
-      campaign: item.campaigns?.title || "",
-    })
+
+    return NextResponse.json(item)
   } catch (error) {
     console.error("Error updating item:", error)
-    return NextResponse.json({ error: "Failed to update item" }, { status: 500 })
+    return NextResponse.json(
+      { error: "Failed to update item" },
+      { status: 500 }
+    )
   }
 } 
