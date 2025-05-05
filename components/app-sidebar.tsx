@@ -145,19 +145,7 @@ export function AppSidebar() {
 
           <div className="px-4">
             <h4 className="mb-2 text-xs font-semibold text-amber-800 dark:text-amber-400">ACTIVE QUESTS</h4>
-            <ul className="grid gap-1">
-              {["Curse of Strahd", "Storm King's Thunder", "Homebrew Campaign"].map((campaign) => (
-                <li key={campaign}>
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-sm font-normal text-amber-200 hover:bg-amber-100/20 dark:hover:bg-amber-900/20"
-                    asChild
-                  >
-                    <Link href={`/campaigns/${campaign.toLowerCase().replace(/\s+/g, "-")}`}>{campaign}</Link>
-                  </Button>
-                </li>
-              ))}
-            </ul>
+            {/* TODO: Add active quests */}
           </div>
         </ScrollArea>
 

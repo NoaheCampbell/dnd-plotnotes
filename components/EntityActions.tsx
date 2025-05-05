@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import GenericEntityEditModal from "@/components/generic-entity-edit-modal"
+import GenericEntityForm from "@/components/generic-entity-form"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { getFullEntityConfig } from "@/lib/get-full-entity-config"
 
 interface EntityActionsProps {
   entity: any
@@ -29,28 +30,8 @@ interface EntityActionsProps {
 }
 
 export default function EntityActions({ entity, campaigns = [], config, apiPath, onDeleted, editOpen, setEditOpen, deleteOpen, setDeleteOpen, deleting, setDeleting }: EntityActionsProps) {
-  // Add campaign_id field to config if it doesn't exist
-  const fullConfig = {
-    ...config,
-    api: `/api${apiPath}`,
-    fields: [
-      // Only add campaign_id select if not editing a campaign itself
-      ...(config.label !== "Campaigns"
-        ? [{
-            name: "campaign_id",
-            label: "Campaign",
-            type: "select",
-            required: true,
-            options: campaigns.map(c => ({ value: c.id, label: c.title }))
-          }]
-        : []),
-      ...config.fields,
-      // Only add the image field if not already present
-      ...(!config.fields.some(f => f.name === "image")
-        ? [{ name: "image", label: "Image", type: "file" }]
-        : [])
-    ]
-  }
+  // Use shared utility for full config
+  const fullConfig = getFullEntityConfig(config, apiPath, campaigns)
 
   async function handleDelete() {
     setDeleting(true)
@@ -73,12 +54,13 @@ export default function EntityActions({ entity, campaigns = [], config, apiPath,
 
   return (
     <>
-      <GenericEntityEditModal
+      <GenericEntityForm
         open={editOpen}
         setOpen={setEditOpen}
         config={fullConfig}
+        onCreated={() => window.location.reload()}
+        campaigns={campaigns}
         entity={entity}
-        onEdited={() => window.location.reload()}
       />
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="bg-parchment-light dark:bg-stone-800 border-amber-800/20">
@@ -92,21 +74,13 @@ export default function EntityActions({ entity, campaigns = [], config, apiPath,
             <DialogClose asChild>
               <Button variant="outline" className="text-amber-900 dark:text-amber-200 border-amber-800/30">Cancel</Button>
             </DialogClose>
-            <div className="flex gap-2 h-full items-stretch">
-              <Button
-                onClick={() => setEditOpen(true)}
-                className="h-10 min-w-[56px] bg-amber-800 text-amber-100 hover:bg-amber-700"
-              >
-                Edit
-              </Button>
-              <Button
-                onClick={handleDelete}
-                className="h-10 min-w-[56px] bg-red-900 text-amber-100 hover:bg-red-800"
-                disabled={deleting}
-              >
-                {deleting ? "Deleting..." : "Delete"}
-              </Button>
-            </div>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

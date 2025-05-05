@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation';
 import GenericEntityPage from '@/components/generic-entity-page';
 
 export default async function EntityPage({ params }: { params: { entity: string } }) {
-  const config = entitiesConfig[params.entity as keyof typeof entitiesConfig];
+  const awaitedParams = await params;
+  const config = entitiesConfig[awaitedParams.entity as keyof typeof entitiesConfig];
   if (!config) return notFound();
-  return <GenericEntityPage entity={params.entity} config={config} />;
+  return <GenericEntityPage entity={awaitedParams.entity} config={config} />;
 } 

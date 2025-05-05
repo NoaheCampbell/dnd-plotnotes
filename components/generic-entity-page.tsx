@@ -74,7 +74,7 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
             </button>
           </div>
         </div>
-        <GenericEntityGrid data={filteredData} config={config} />
+        <GenericEntityGrid data={filteredData} config={config} campaigns={campaigns} />
         <GenericEntityForm
           open={open}
           setOpen={setOpen}

@@ -81,13 +81,6 @@ export const entitiesConfig = {
     subtitle: "Manage your epic adventures and quests",
     api: "/api/campaigns",
     fields: [
-      {
-        name: "campaign_id",
-        label: "Parent Campaign",
-        type: "select",
-        required: false,
-        // options will be injected by EntityActions
-      },
       { name: "title", label: "Title", type: "text", required: true },
       { name: "description", label: "Description", type: "text" },
       { name: "image", label: "Image", type: "file" },

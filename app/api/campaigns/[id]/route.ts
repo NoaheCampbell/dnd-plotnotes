@@ -9,7 +9,8 @@ cloudinary.config({
 })
 
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
-  const id = parseInt(params.id)
+  const awaitedParams = await params;
+  const id = parseInt(awaitedParams.id)
   if (isNaN(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
 
   const data = await req.json()
@@ -33,6 +34,7 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
+  const awaitedParams = await params;
   try {
     // Try to parse JSON for toggling active
     let isJson = false;
@@ -45,7 +47,7 @@ export async function PATCH(
     }
     if (isJson && typeof data.active !== "undefined") {
       const campaign = await prisma.campaigns.update({
-        where: { id: Number(params.id) },
+        where: { id: Number(awaitedParams.id) },
         data: { active: data.active },
       });
       return NextResponse.json(campaign);
@@ -57,7 +59,7 @@ export async function PATCH(
     const imageFile = formData.get("image")
 
     // Get the old image_url
-    const oldCampaign = await prisma.campaigns.findUnique({ where: { id: Number(params.id) }, select: { image_url: true } })
+    const oldCampaign = await prisma.campaigns.findUnique({ where: { id: Number(awaitedParams.id) }, select: { image_url: true } })
     const oldImageUrl = oldCampaign?.image_url
 
     let image_url: string | undefined = undefined
@@ -81,7 +83,7 @@ export async function PATCH(
     }
 
     const campaign = await prisma.campaigns.update({
-      where: { id: Number(params.id) },
+      where: { id: Number(awaitedParams.id) },
       data: {
         title,
         description,
@@ -114,8 +116,9 @@ export async function PATCH(
 }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  const awaitedParams = await params;
   try {
-    const id = Number(params.id)
+    const id = Number(awaitedParams.id)
     if (isNaN(id)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 })
 
     // Get the campaign to check for image
