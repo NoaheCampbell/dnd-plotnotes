@@ -51,4 +51,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     console.error("Error updating NPC:", error);
     return NextResponse.json({ error: "Failed to update NPC" }, { status: 500 });
   }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    await prisma.npcs.delete({
+      where: { id: Number(params.id) },
+    });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting NPC:", error);
+    return NextResponse.json({ error: "Failed to delete NPC" }, { status: 500 });
+  }
 } 

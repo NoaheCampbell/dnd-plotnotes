@@ -3,10 +3,12 @@ import { useEffect, useState } from "react";
 import GenericEntityGrid from "./generic-entity-grid";
 import GenericEntityForm from "./generic-entity-form";
 import { Input } from "@/components/ui/input";
+import { getFullEntityConfig } from "@/lib/get-full-entity-config";
 
 export default function GenericEntityPage({ entity, config }: { entity: string; config: any }) {
   const [data, setData] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [editEntity, setEditEntity] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [campaigns, setCampaigns] = useState<any[]>([]);
 
@@ -74,13 +76,14 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
             </button>
           </div>
         </div>
-        <GenericEntityGrid data={filteredData} config={config} campaigns={campaigns} />
+        <GenericEntityGrid data={filteredData} config={config} campaigns={campaigns} onEdit={setEditEntity} />
         <GenericEntityForm
-          open={open}
-          setOpen={setOpen}
-          config={config}
+          open={open || !!editEntity}
+          setOpen={(v) => { if (!v) { setOpen(false); setEditEntity(null); } }}
+          config={getFullEntityConfig(config, `/${entity}`, campaigns)}
           onCreated={handleCreated}
           campaigns={campaigns}
+          entity={editEntity || undefined}
         />
       </div>
     </div>

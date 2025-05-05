@@ -22,26 +22,15 @@ export default function GenericEntityForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Inject campaign_id select field for non-campaign entities
-  const fields = [
-    ...(config.api !== "/api/campaigns" && config.api !== "/api/campaigns/"
-      ? [{
-          name: "campaign_id",
-          label: "Campaign",
-          type: "select",
-          required: true,
-          options: campaigns.map((c: any) => ({ value: c.id, label: c.title }))
-        }]
-      : []),
-    ...config.fields
-  ];
+  // Remove campaign_id select field injection here. Only use config.fields.
+  const fields = config.fields;
 
   // Pre-fill form with entity data if editing
   useEffect(() => {
     if (formRef.current) {
       if (entity && open) {
         // Set form values when editing
-        fields.forEach(field => {
+        fields.forEach((field: any) => {
           const input = formRef.current?.elements.namedItem(field.name) as HTMLInputElement;
           if (input) {
             if (field.type === "select") {
