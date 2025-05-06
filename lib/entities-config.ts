@@ -16,6 +16,26 @@ export const entitiesConfig = {
     label: "NPCs",
     subtitle: "Your cast of characters across all campaigns",
     api: "/api/npcs",
+    preview: {
+      enabled: true,
+      fields: [
+        { name: "name", label: "Name" },
+        { name: "race", label: "Race" },
+        { name: "class", label: "Class" },
+        { name: "alignment", label: "Alignment" },
+        { name: "age", label: "Age" },
+        { name: "hair_color", label: "Hair" },
+        { name: "eye_color", label: "Eyes" },
+        { name: "skin_color", label: "Skin" },
+        { name: "height", label: "Height" },
+        { name: "weight", label: "Weight" },
+        { name: "personality_traits", label: "Personality" },
+        { name: "ideals", label: "Ideals" },
+        { name: "bonds", label: "Bonds" },
+        { name: "flaws", label: "Flaws" },
+        { name: "backstory", label: "Backstory" }
+      ]
+    },
     fields: [
       { name: "name", label: "Name", type: "text", required: true },
       { name: "race", label: "Race", type: "text", layout: { width: "half" } },
