@@ -8,6 +8,15 @@ import GenericEntityForm from "@/components/generic-entity-form";
 import { getFullEntityConfig } from "@/lib/get-full-entity-config";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 
+// Helper to robustly stringify any value for rendering
+function renderValue(val: any): string {
+  if (val == null) return "N/A";
+  if (val instanceof Date) return val.toISOString();
+  if (Array.isArray(val)) return val.map(renderValue).join(", ");
+  if (typeof val === "object") return JSON.stringify(val);
+  return val.toString();
+}
+
 export default function CampaignDetailsClient({
   campaign,
   npcs,
@@ -31,8 +40,8 @@ export default function CampaignDetailsClient({
   const [open, setOpen] = useState<null | string>(null);
   const [editEntity, setEditEntity] = useState<{ [key: string]: any }>({});
   const [deleteEntity, setDeleteEntity] = useState<{ [key: string]: any }>({});
-  // State for expanded section
-  const [expandedSection, setExpandedSection] = useState<string | null>("npcs");
+  // State for expanded sections (allow multiple open)
+  const [expandedSections, setExpandedSections] = useState<string[]>(["npcs"]);
   // Helper to open modal for a section
   const openModal = (section: string) => setOpen(section);
   const closeModal = () => setOpen(null);
@@ -70,12 +79,12 @@ export default function CampaignDetailsClient({
       {/* Wiki-style collapsible sections */}
       <div className="w-full max-w-4xl space-y-4">
         {sections.map(section => {
-          const isExpanded = expandedSection === section.key;
+          const isExpanded = expandedSections.includes(section.key);
           return (
             <div key={section.key} className="bg-parchment-light dark:bg-stone-800 border border-amber-800/20 rounded-lg">
               <button
                 className="w-full flex items-center justify-between px-6 py-4 text-xl font-bold text-amber-900 dark:text-amber-200 bg-amber-50/40 dark:bg-amber-900/10 hover:bg-amber-100 dark:hover:bg-amber-900/20 transition font-heading rounded-t-lg focus:outline-none"
-                onClick={() => setExpandedSection(isExpanded ? null : section.key)}
+                onClick={() => setExpandedSections(prev => prev.includes(section.key) ? prev.filter(k => k !== section.key) : [...prev, section.key])}
                 aria-expanded={isExpanded}
               >
                 <span>{section.label}</span>
@@ -84,7 +93,18 @@ export default function CampaignDetailsClient({
               {isExpanded && (
                 <div className="p-4">
                   <div className="flex items-center justify-end mb-2">
-                    <Button className="bg-amber-800 text-amber-100 hover:bg-amber-700" onClick={() => openModal(section.key)}>
+                    <Button
+                      className="bg-amber-800 text-amber-100 hover:bg-amber-700"
+                      onClick={() => {
+                        openModal(section.key);
+                        setEditEntity(prev => ({
+                          ...prev,
+                          [section.key]: section.key === "sessions"
+                            ? { campaign_id: campaign.id, date: new Date().toISOString().slice(0, 10) }
+                            : { campaign_id: campaign.id }
+                        }));
+                      }}
+                    >
                       Add New
                     </Button>
                   </div>
@@ -120,7 +140,7 @@ export default function CampaignDetailsClient({
                         </DialogTitle>
                       </DialogHeader>
                       <p className="text-amber-800 dark:text-amber-400 mb-4">
-                        Are you sure you want to delete "{deleteEntity[section.key]?.title || deleteEntity[section.key]?.name}"? This action cannot be undone.
+                        Are you sure you want to delete "{renderValue(deleteEntity[section.key]?.title || deleteEntity[section.key]?.name)}"? This action cannot be undone.
                       </p>
                       <DialogFooter>
                         <DialogClose asChild>

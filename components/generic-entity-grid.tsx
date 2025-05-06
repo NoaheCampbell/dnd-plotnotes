@@ -10,6 +10,21 @@ function isLongField(fieldName: string) {
   return ["description", "content", "notes"].includes(fieldName.toLowerCase());
 }
 
+// Helper to robustly stringify any value for rendering, with logging
+function renderValue(val: any, fieldName?: string): string {
+  try {
+    if (val == null) return "N/A";
+    if (typeof val === "string" || typeof val === "number" || typeof val === "boolean") return val.toString();
+    if (val instanceof Date) return val.toISOString();
+    if (Array.isArray(val)) return val.map(v => renderValue(v, fieldName)).join(", ");
+    if (typeof val === "object") return JSON.stringify(val);
+    return String(val);
+  } catch (e) {
+    console.error(`Error rendering field '${fieldName}':`, val, e);
+    return "Invalid value";
+  }
+}
+
 export default function GenericEntityGrid({ data, config, campaigns = [], wikiMode = false, onEdit, onDelete }: { data: any[]; config: any; campaigns?: any[]; wikiMode?: boolean; onEdit?: (item: any) => void; onDelete?: (item: any) => void }) {
   // Manage grid data in local state for seamless updates
   const [gridData, setGridData] = useState(data);
@@ -34,6 +49,12 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
           : [...current, fieldName],
       };
     });
+  };
+
+  // When calling onEdit, add a debug log
+  const handleEdit = (item: any) => {
+    console.log("Grid onEdit item:", item);
+    onEdit && onEdit(item);
   };
 
   if (!gridData.length) {
@@ -92,7 +113,10 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   <div className="text-sm text-amber-800 dark:text-amber-400 mb-2">
                     {config.fields.filter((f: any) => f.name !== config.imageField && f.name !== "campaign_id" && f.name !== "id").map((f: any) => (
                       <div key={f.name} className="mb-1">
-                        <span className="font-semibold">{f.label}:</span> {item[f.name]}
+                        <span className="font-semibold">{f.label}:</span>
+                        <span className="truncate">
+                          {renderValue(item[f.name], f.name)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -111,7 +135,7 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   </Link>
                   <Button
                     className="h-10 min-w-[56px] bg-amber-800 text-amber-100 hover:bg-amber-700"
-                    onClick={() => onEdit && onEdit(item)}
+                    onClick={handleEdit}
                   >
                     Edit
                   </Button>
@@ -208,7 +232,9 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   {entityFields.map((f: any, idx: number) => (
                     <div key={f.name} className={`py-2 px-2 flex flex-col ${idx === 0 ? "rounded-t" : ""} ${idx === entityFields.length - 1 ? "rounded-b" : ""}`}>
                       <span className="font-bold text-amber-900 dark:text-amber-200 mb-1">{f.label}</span>
-                      <span className="text-amber-900 dark:text-amber-300 whitespace-pre-line">{item[f.name]}</span>
+                      <span className="text-amber-900 dark:text-amber-300 whitespace-pre-line">
+                        {renderValue(item[f.name], f.name)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -218,7 +244,7 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   </Link>
                   <Button
                     className="bg-amber-800 text-amber-100 hover:bg-amber-700"
-                    onClick={() => onEdit && onEdit(item)}
+                    onClick={handleEdit}
                   >
                     Edit
                   </Button>

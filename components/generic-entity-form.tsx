@@ -38,7 +38,9 @@ export default function GenericEntityForm({
               input.value = entity[field.name] || '';
             } else {
               // For other fields, set the value
-              input.value = entity[field.name] || '';
+              input.value = entity?.[field.name] instanceof Date
+                ? entity[field.name].toISOString()
+                : entity?.[field.name] || '';
             }
           }
         });
@@ -56,10 +58,14 @@ export default function GenericEntityForm({
     const form = e.currentTarget;
     const formData = new FormData(form);
     
+    // Use entity?.id to determine if this is an edit or create
+    const isEdit = entity && entity.id;
+    const url = isEdit ? `${config.api}/${entity.id}` : config.api;
+    const method = isEdit ? "PATCH" : "POST";
     const res = await fetch(
-      entity ? `${config.api}/${entity.id}` : config.api,
+      url,
       {
-        method: entity ? "PATCH" : "POST",
+        method,
         body: formData,
       }
     );
@@ -94,7 +100,29 @@ export default function GenericEntityForm({
                   name={field.name}
                   type="text"
                   required={field.required}
-                  defaultValue={entity?.[field.name] || ''}
+                  defaultValue={
+                    entity?.[field.name] instanceof Date
+                      ? entity[field.name].toISOString()
+                      : entity?.[field.name] || ''
+                  }
+                  className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+                />
+              )}
+              {field.type === "date" && (
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  type="date"
+                  required={field.required}
+                  defaultValue={
+                    entity?.[field.name]
+                      ? entity[field.name] instanceof Date
+                        ? entity[field.name].toISOString().slice(0, 10)
+                        : typeof entity[field.name] === "string"
+                          ? entity[field.name].slice(0, 10)
+                          : ""
+                      : ""
+                  }
                   className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                 />
               )}
@@ -120,6 +148,16 @@ export default function GenericEntityForm({
                   name={field.name}
                   type="file"
                   accept="image/*"
+                  className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+                />
+              )}
+              {field.type === "time" && (
+                <Input
+                  id={field.name}
+                  name={field.name}
+                  type="time"
+                  required={field.required}
+                  defaultValue={entity?.[field.name] || ''}
                   className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                 />
               )}

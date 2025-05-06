@@ -2,8 +2,23 @@ import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const id = Number(params.id);
-  const data = await req.json();
+  const awaitedParams = await params;
+  const id = Number(awaitedParams.id);
+
+  let data: any = {};
+  try {
+    if (req.headers.get("content-type")?.includes("application/json")) {
+      data = await req.json();
+    } else {
+      const formData = await req.formData();
+      formData.forEach((value, key) => {
+        data[key] = value;
+      });
+    }
+  } catch (e) {
+    return new Response("Invalid request body", { status: 400 });
+  }
+
   const { campaign_id, date, time, location, notes } = data;
 
   if (!campaign_id || !date || !time) {
