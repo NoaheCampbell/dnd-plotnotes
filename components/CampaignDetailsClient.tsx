@@ -42,17 +42,26 @@ export default function CampaignDetailsClient({
   const [deleteEntity, setDeleteEntity] = useState<{ [key: string]: any }>({});
   // State for expanded sections (allow multiple open)
   const [expandedSections, setExpandedSections] = useState<string[]>(["npcs"]);
+  // Local state for each section's data
+  const [sectionData, setSectionData] = useState<{ [key: string]: any[] }>({
+    npcs,
+    locations,
+    items,
+    notes,
+    sessions,
+    encounters,
+  });
   // Helper to open modal for a section
   const openModal = (section: string) => setOpen(section);
   const closeModal = () => setOpen(null);
 
   const sections = [
-    { label: "NPCs", key: "npcs", data: npcs, config: entitiesConfig.npcs },
-    { label: "Locations", key: "locations", data: locations, config: entitiesConfig.locations },
-    { label: "Items", key: "items", data: items, config: entitiesConfig.items },
-    { label: "Notes", key: "notes", data: notes, config: entitiesConfig.notes },
-    { label: "Sessions", key: "sessions", data: sessions, config: entitiesConfig.sessions },
-    { label: "Encounters", key: "encounters", data: encounters, config: entitiesConfig.encounters },
+    { label: "NPCs", key: "npcs", data: sectionData.npcs, config: entitiesConfig.npcs },
+    { label: "Locations", key: "locations", data: sectionData.locations, config: entitiesConfig.locations },
+    { label: "Items", key: "items", data: sectionData.items, config: entitiesConfig.items },
+    { label: "Notes", key: "notes", data: sectionData.notes, config: entitiesConfig.notes },
+    { label: "Sessions", key: "sessions", data: sectionData.sessions, config: entitiesConfig.sessions },
+    { label: "Encounters", key: "encounters", data: sectionData.encounters, config: entitiesConfig.encounters },
   ];
 
   async function handleDelete(sectionKey: string, entity: any) {
@@ -125,7 +134,14 @@ export default function CampaignDetailsClient({
                       }
                     }}
                     config={getFullEntityConfig(section.config, `/${section.key}`, campaigns)}
-                    onCreated={() => window.location.reload()}
+                    onCreated={newEntity => {
+                      setSectionData(prev => ({
+                        ...prev,
+                        [section.key]: [...prev[section.key], newEntity]
+                      }));
+                      closeModal();
+                      setEditEntity(prev => ({ ...prev, [section.key]: null }));
+                    }}
                     campaigns={campaigns}
                     entity={editEntity[section.key] || undefined}
                   />
