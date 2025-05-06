@@ -131,13 +131,18 @@ export default async function Dashboard({ searchParams }: PageProps) {
           <TabsList className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30">
             <TabsTrigger value="campaigns" className="text-amber-900 dark:text-amber-200">Campaigns</TabsTrigger>
             <TabsTrigger value="sessions" className="text-amber-900 dark:text-amber-200">Sessions</TabsTrigger>
-            <TabsTrigger value="npcs" className="text-amber-900 dark:text-amber-200">NPCs</TabsTrigger>
-            <TabsTrigger value="notes" className="text-amber-900 dark:text-amber-200">Notes</TabsTrigger>
           </TabsList>
           <TabsContent value="campaigns" className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {campaigns.map((campaign: CampaignWithRelations) => (
                 <Card key={campaign.id} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30">
+                  {campaign.image_url && (
+                    <img
+                      src={campaign.image_url}
+                      alt={campaign.title}
+                      className="w-full h-40 object-cover rounded-t-lg border-b border-amber-800/30"
+                    />
+                  )}
                   <CardHeader>
                     <CardTitle className="text-amber-900 dark:text-amber-200">{campaign.title}</CardTitle>
                     <CardDescription className="text-amber-800 dark:text-amber-400">
@@ -182,44 +187,6 @@ export default async function Dashboard({ searchParams }: PageProps) {
                   <CardContent>
                     <p className="text-sm text-amber-800 dark:text-amber-400">
                       {session.notes || 'No notes available'}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-          <TabsContent value="npcs" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {campaigns.flatMap((campaign: CampaignWithRelations) => campaign.npcs).map((npc: CampaignWithRelations["npcs"][number]) => (
-                <Card key={npc.id} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30">
-                  <CardHeader>
-                    <CardTitle className="text-amber-900 dark:text-amber-200">{npc.name}</CardTitle>
-                    <CardDescription className="text-amber-800 dark:text-amber-400">
-                      {npc.type || 'Type not specified'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-amber-800 dark:text-amber-400">
-                      {npc.description || 'No description available'}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
-          <TabsContent value="notes" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {campaigns.flatMap((campaign: CampaignWithRelations) => campaign.notes).map((note: CampaignWithRelations["notes"][number]) => (
-                <Card key={note.id} className="bg-amber-50/50 dark:bg-amber-900/20 border-amber-800/30">
-                  <CardHeader>
-                    <CardTitle className="text-amber-900 dark:text-amber-200">{note.title}</CardTitle>
-                    <CardDescription className="text-amber-800 dark:text-amber-400">
-                      {note.created_at ? format(note.created_at, 'MMM d, yyyy') : 'Unknown date'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-amber-800 dark:text-amber-400">
-                      {note.content || 'No content available'}
                     </p>
                   </CardContent>
                 </Card>

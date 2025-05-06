@@ -22,6 +22,9 @@ export default function GenericEntityDetailsClient({ entity, config, apiPath, ca
   const descriptionField = config.descriptionField;
   const imageField = config.imageField;
 
+  // Debug: log the entity object to check what fields are present
+  console.log("NPC entity:", entity);
+
   async function handleDelete() {
     // Parse entity type from apiPath (e.g., '/npcs' -> 'npcs')
     const entityType = apiPath.replace(/^\//, '').split("/")[0];
@@ -69,6 +72,21 @@ export default function GenericEntityDetailsClient({ entity, config, apiPath, ca
               alt={entity[mainField]}
               className="w-full max-w-md mx-auto h-64 object-cover rounded border border-amber-800/30"
             />
+          </div>
+        )}
+        {/* NPC Preview Section */}
+        {config.label === 'NPCs' && config.preview?.enabled && (
+          <div className="px-6 pt-8 pb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-4">
+              {config.preview.fields.map((field: any) => (
+                <div key={field.name} className="flex flex-col">
+                  <span className="text-base font-semibold text-amber-700 dark:text-amber-400 mb-1">{field.label}</span>
+                  <span className="text-xl text-amber-900 dark:text-amber-200 break-words">
+                    {entity[field.name] || <span className="text-amber-400">—</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         <CardContent className="text-amber-900 dark:text-amber-200 space-y-2">
