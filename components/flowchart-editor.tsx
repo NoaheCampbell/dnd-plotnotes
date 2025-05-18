@@ -68,6 +68,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
       },
       data: { label: `Event ${id-1}` },
+      style: { width: 150, height: 70 }, // Default initial size for EventNode
     };
     setNodes((nds) => nds.concat(newNode));
   }, [setNodes, rfInstance]);
@@ -82,6 +83,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
       },
       data: { label: `NPC ${id-1}` },
+      style: { width: 80, height: 80 }, // Default initial size for NPCNode (square for circle)
     };
     setNodes((nds) => nds.concat(newNode));
   }, [setNodes, rfInstance]);

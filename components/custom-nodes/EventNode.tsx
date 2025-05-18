@@ -39,32 +39,34 @@ const EventNode: React.FC<NodeProps<EventNodeData>> = ({ data, isConnectable, se
         background: currentStyle.background,
         border: `1px solid ${currentStyle.borderColor}`,
         borderRadius: '8px',
-        padding: '10px 15px',
-        width: '100%', // Allow node to fill the resizer area
-        height: '100%', // Allow node to fill the resizer area
+        padding: '8px 12px', // Slightly reduced overall padding
+        width: '100%', // Fill the resizer controlled area
+        height: '100%', // Fill the resizer controlled area
         textAlign: 'center',
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
-        display: 'flex', // For centering content if needed
+        display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden', // Prevent content spillover during resize
       }}
       // className="dark:bg-amber-800/50 dark:border-amber-700" // Tailwind for dark bg/border removed as inline styles now handle it
     >
       <NodeResizer
         isVisible={selected}
-        minWidth={120} // Sensible minimum width
-        minHeight={60}  // Sensible minimum height
-        keepAspectRatio={false} // Allow freeform resizing for event nodes
+        minWidth={80}  // Reduced minWidth
+        minHeight={40} // Reduced minHeight
+        keepAspectRatio={false}
         lineClassName="border-blue-500"
         handleClassName="bg-blue-500 h-2 w-2 rounded-full"
       />
       <Handle type="target" position={Position.Top} isConnectable={isConnectable} style={{ background: '#555' }} />
-      <div className="flex items-center justify-center gap-2">
-        <Activity size={16} className={currentStyle.iconColor} />
-        <strong 
-          className="font-semibold"
+      <div className="flex items-center justify-center gap-x-1.5 w-full" style={{ minWidth: 0 }}> {/* gap-x-1.5 is 6px */}
+        <Activity size={14} className={`${currentStyle.iconColor} flex-shrink-0`} />
+        <strong
+          className="font-semibold text-xs whitespace-nowrap overflow-hidden text-ellipsis flex-grow"
           style={{ color: currentStyle.textColor }}
+          title={data.label || 'Event'} // Show full label on hover
         >
           {data.label || 'Event'}
         </strong>
