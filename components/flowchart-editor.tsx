@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import ReactFlow, {
   Controls,
   Background,
@@ -16,6 +16,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import EventNode from './custom-nodes/EventNode'; // Import the custom node
 
 interface FlowchartEditorProps {
   flowchartId?: string; // For loading an existing flowchart
@@ -40,6 +41,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentNodeLabel, setCurrentNodeLabel] = useState<string>("");
 
+  // Define node types
+  const nodeTypes = useMemo(() => ({
+    eventNode: EventNode,
+    // We can add more custom node types here later
+    // default: DefaultNode, // if you want to customize the default one too
+  }), []);
+
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
@@ -49,12 +57,12 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     const newNodeId = getNewNodeId();
     const newNode: Node = {
       id: newNodeId,
-      type: 'default', // Can be customized later
+      type: 'eventNode', // Changed to eventNode for testing
       position: {
-        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100, // Position within viewport
+        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
         y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
       },
-      data: { label: `Node ${id-1}` }, // id is already incremented by getNewNodeId
+      data: { label: `Event ${id-1}` }, // id is already incremented
     };
     setNodes((nds) => nds.concat(newNode));
   }, [setNodes, rfInstance]);
@@ -225,6 +233,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         onPaneClick={onPaneClick}
         fitView
         className="flex-grow"
+        nodeTypes={nodeTypes} // Pass the custom node types
       >
         <Controls />
         <Background />
