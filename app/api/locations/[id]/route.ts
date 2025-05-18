@@ -57,4 +57,25 @@ export async function PATCH(
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: "Invalid location ID" }, { status: 400 });
+    }
+
+    await prisma.locations.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Location deleted successfully" }, { status: 200 });
+  } catch (error: any) {
+    console.error("Error deleting location:", error);
+    if (error.code === 'P2025') { // Prisma error code for record not found
+      return NextResponse.json({ error: "Location not found" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Failed to delete location" }, { status: 500 });
+  }
 } 

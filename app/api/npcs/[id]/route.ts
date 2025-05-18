@@ -79,12 +79,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
+    const id = Number(params.id);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: "Invalid NPC ID" }, { status: 400 });
+    }
+
     await prisma.npcs.delete({
-      where: { id: Number(params.id) },
+      where: { id },
     });
-    return NextResponse.json({ success: true });
-  } catch (error) {
+
+    return NextResponse.json({ message: "NPC deleted successfully" }, { status: 200 });
+  } catch (error: any) {
     console.error("Error deleting NPC:", error);
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: "NPC not found" }, { status: 404 });
+    }
     return NextResponse.json({ error: "Failed to delete NPC" }, { status: 500 });
   }
 } 

@@ -17,6 +17,10 @@ import 'reactflow/dist/style.css';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import EventNode from './custom-nodes/EventNode'; // Import the custom node
+import NPCNode from './custom-nodes/NPCNode'; // Import NPCNode
+import { NodeResizer } from '@reactflow/node-resizer';
+import '@reactflow/node-resizer/dist/style.css';
+import { toast } from 'sonner'; // Import sonner toast
 
 interface FlowchartEditorProps {
   flowchartId?: string; // For loading an existing flowchart
@@ -44,6 +48,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   // Define node types
   const nodeTypes = useMemo(() => ({
     eventNode: EventNode,
+    npcNode: NPCNode, // Register NPCNode
     // We can add more custom node types here later
     // default: DefaultNode, // if you want to customize the default one too
   }), []);
@@ -53,16 +58,30 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     [setEdges]
   );
 
-  const addNode = useCallback(() => {
+  const addEventNode = useCallback(() => {
     const newNodeId = getNewNodeId();
     const newNode: Node = {
       id: newNodeId,
-      type: 'eventNode', // Changed to eventNode for testing
+      type: 'eventNode',
       position: {
         x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
         y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
       },
-      data: { label: `Event ${id-1}` }, // id is already incremented
+      data: { label: `Event ${id-1}` },
+    };
+    setNodes((nds) => nds.concat(newNode));
+  }, [setNodes, rfInstance]);
+
+  const addNpcNode = useCallback(() => {
+    const newNodeId = getNewNodeId();
+    const newNode: Node = {
+      id: newNodeId,
+      type: 'npcNode',
+      position: {
+        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
+        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
+      },
+      data: { label: `NPC ${id-1}` },
     };
     setNodes((nds) => nds.concat(newNode));
   }, [setNodes, rfInstance]);
@@ -108,13 +127,15 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     if (flowchartId) {
       loadFlowchart(flowchartId);
     }
-  }, [flowchartId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [flowchartId]); // Added eslint-disable-next-line to handle potential missing dependencies if loadFlowchart is not memoized with useCallback
 
   const loadFlowchart = async (idToLoad: string) => {
     try {
       const response = await fetch(`/api/flowcharts/${idToLoad}`);
       if (!response.ok) {
-        throw new Error(`Failed to load flowchart: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to load flowchart: ${response.statusText}`);
       }
       const flowchart = await response.json();
       if (flowchart && flowchart.data && flowchart.data.nodes) {
@@ -128,24 +149,21 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
       } else {
         console.error('Loaded flowchart data is not in the expected format:', flowchart);
-        // Initialize with default if format is bad
-        setNodes(initialNodes);
-        setEdges([]);
-        setFlowchartName(initialName || 'New Flowchart (load failed)');
+        throw new Error('Flowchart data is malformed.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading flowchart:', error);
-      alert('Error loading flowchart. See console for details.');
-       // Initialize with default on error
-       setNodes(initialNodes);
-       setEdges([]);
-       setFlowchartName(initialName || 'New Flowchart (load error)');
+      toast.error(error.message || 'Error loading flowchart. See console for details.');
+      // Initialize with default on error
+      setNodes(initialNodes);
+      setEdges([]);
+      setFlowchartName(initialName || 'New Flowchart (load error)');
     }
   };
 
   const saveFlowchart = async () => {
     if (!campaignId && !currentFlowchartId) {
-      alert('Cannot save: No campaign context for a new flowchart and no existing flowchart ID.');
+      toast.error('Cannot save: No campaign context or existing flowchart ID.');
       return;
     }
 
@@ -175,21 +193,21 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       }
 
       if (!response || !response.ok) {
-        const errorData = response ? await response.json() : { error: 'Unknown error' };
-        throw new Error(`Failed to save flowchart: ${response?.statusText} - ${errorData.error}`);
+        const errorData = response ? await response.json().catch(() => ({})) : { error: 'Unknown error' };
+        throw new Error(errorData.error || `Failed to save flowchart: ${response?.statusText}`);
       }
 
       const savedFlowchart = await response.json();
-      setCurrentFlowchartId(savedFlowchart.id); // Update ID if it was a new flowchart
-      alert('Flowchart saved successfully!');
+      setCurrentFlowchartId(savedFlowchart.id);
+      toast.success('Flowchart saved successfully!');
       
       if (onSaveSuccess) {
         onSaveSuccess(savedFlowchart);
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving flowchart:', error);
-      alert(`Error saving flowchart: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error(error.message || 'Error saving flowchart. See console for details.');
     }
   };
 
@@ -205,7 +223,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           placeholder="Flowchart Name"
           className="max-w-xs text-base h-9 bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
         />
-        <Button onClick={addNode} variant="outline" size="sm" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-700">Add Node</Button>
+        <Button onClick={addEventNode} variant="outline" size="sm" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-700">Add Event Node</Button>
+        <Button onClick={addNpcNode} variant="outline" size="sm" className="text-sky-800 border-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:border-sky-500 dark:hover:bg-stone-700">Add NPC Node</Button>
         <Button onClick={saveFlowchart} variant="default" size="sm" className="bg-amber-800 text-amber-100 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600">Save Flowchart</Button>
         
         {selectedNode && (

@@ -35,4 +35,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     console.error("Error updating note:", error)
     return NextResponse.json({ error: "Failed to update note" }, { status: 500 })
   }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: "Invalid note ID" }, { status: 400 });
+    }
+
+    await prisma.notes.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Note deleted successfully" }, { status: 200 });
+  } catch (error: any) {
+    console.error("Error deleting note:", error);
+    if (error.code === 'P2025') { // Prisma error code for record not found
+      return NextResponse.json({ error: "Note not found" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Failed to delete note" }, { status: 500 });
+  }
 } 

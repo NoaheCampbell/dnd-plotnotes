@@ -69,4 +69,46 @@ export async function PATCH(
       { status: 500 }
     )
   }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: "Invalid item ID" }, { status: 400 });
+    }
+
+    // First, find the item to get its image_public_id for Cloudinary deletion
+    const itemToDelete = await prisma.items.findUnique({
+      where: { id },
+      select: { image_public_id: true },
+    });
+
+    if (!itemToDelete) {
+      return NextResponse.json({ error: "Item not found" }, { status: 404 });
+    }
+
+    // Delete the item from the database
+    await prisma.items.delete({
+      where: { id },
+    });
+
+    // If the item had an image_public_id, delete it from Cloudinary
+    if (itemToDelete.image_public_id) {
+      try {
+        await cloudinary.uploader.destroy(itemToDelete.image_public_id);
+      } catch (cloudinaryError) {
+        console.error("Cloudinary image deletion failed:", cloudinaryError);
+        // Optionally, decide if this failure should prevent a success response
+        // For now, we'll assume DB deletion is the primary success criteria
+      }
+    }
+
+    return NextResponse.json({ message: "Item deleted successfully" }, { status: 200 });
+  } catch (error: any) {
+    console.error("Error deleting item:", error);
+    // Prisma P2025 (record not found) is already handled by the check above
+    // So, this catch is for other potential errors (e.g., database connection issues)
+    return NextResponse.json({ error: "Failed to delete item" }, { status: 500 });
+  }
 } 

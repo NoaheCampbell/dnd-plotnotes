@@ -7,8 +7,20 @@ import { entitiesConfig } from "@/lib/entities-config";
 import GenericEntityForm from "@/components/generic-entity-form";
 import { getFullEntityConfig } from "@/lib/get-full-entity-config";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import FlowchartEditor from "@/components/flowchart-editor";
+import { toast } from 'sonner';
 
 // Helper to robustly stringify any value for rendering
 function renderValue(val: any): string {
@@ -57,6 +69,7 @@ export default function CampaignDetailsClient({
   const [loadingFlowcharts, setLoadingFlowcharts] = useState(true);
   const [showFlowchartEditor, setShowFlowchartEditor] = useState(false);
   const [editingFlowchart, setEditingFlowchart] = useState<any | null>(null);
+  const [flowchartToDelete, setFlowchartToDelete] = useState<any | null>(null);
 
   useEffect(() => {
     async function fetchFlowcharts() {
@@ -127,19 +140,21 @@ export default function CampaignDetailsClient({
   };
   
   const handleDeleteFlowchart = async (flowchartId: string) => {
-    if (!confirm("Are you sure you want to delete this flowchart?")) return;
     try {
       const response = await fetch(`/api/flowcharts/${flowchartId}`, { method: 'DELETE' });
       if (response.ok) {
         setFlowcharts(prev => prev.filter(f => f.id !== flowchartId));
-        alert("Flowchart deleted.");
+        toast.success("Flowchart deleted successfully.");
       } else {
-        alert("Failed to delete flowchart.");
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Failed to delete flowchart:", response.status, errorData);
+        toast.error(errorData.error || `Failed to delete flowchart: ${response.statusText}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error deleting flowchart:", error);
-      alert("Error deleting flowchart.");
+      toast.error(error.message || "An unexpected error occurred while deleting the flowchart.");
     }
+    setFlowchartToDelete(null);
   };
 
   const sections = [
@@ -152,8 +167,27 @@ export default function CampaignDetailsClient({
   ];
 
   async function handleDelete(sectionKey: string, entity: any) {
-    await fetch(`/api/${sectionKey}/${entity.id}`, { method: "DELETE" });
-    window.location.reload();
+    try {
+      const response = await fetch(`/api/${sectionKey}/${entity.id}`, { method: "DELETE" });
+
+      if (response.ok) {
+        // Update local state to remove the deleted entity
+        setSectionData(prevSectionData => ({
+          ...prevSectionData,
+          [sectionKey]: prevSectionData[sectionKey].filter(item => item.id !== entity.id),
+        }));
+        // alert(`${entity.name || entity.title || 'Entity'} deleted successfully.`); // Optional success message
+      } else {
+        // Handle errors (e.g., show an error message)
+        const errorData = await response.json().catch(() => ({ message: 'Failed to delete entity. Unknown error.' }));
+        console.error(`Failed to delete ${sectionKey}:`, response.status, errorData);
+        alert(`Failed to delete ${entity.name || entity.title || 'Entity'}. Error: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error(`Error during deletion of ${sectionKey}:`, error);
+      alert(`An unexpected error occurred while deleting ${entity.name || entity.title || 'Entity'}. See console for details.`);
+    }
+    // window.location.reload(); // Removed the immediate reload
   }
 
   return (
@@ -277,7 +311,7 @@ export default function CampaignDetailsClient({
                         <span className="text-amber-900 dark:text-amber-200">{fc.name}</span>
                         <div className="flex gap-2">
                           <Button size="sm" variant="outline" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-600" onClick={() => handleEditFlowchart(fc)}>Edit</Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDeleteFlowchart(fc.id)}>Delete</Button>
+                          <Button size="sm" variant="destructive" onClick={() => setFlowchartToDelete(fc)}>Delete</Button>
                         </div>
                       </li>
                     ))}
@@ -320,6 +354,34 @@ export default function CampaignDetailsClient({
             </DialogFooter> */}
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Delete Flowchart Confirmation Dialog */}
+      {flowchartToDelete && (
+        <AlertDialog open={!!flowchartToDelete} onOpenChange={() => setFlowchartToDelete(null)}>
+          <AlertDialogContent className="bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-amber-900 dark:text-amber-200">Are you sure you want to delete "{flowchartToDelete.name}"?</AlertDialogTitle>
+              <AlertDialogDescription className="text-amber-700 dark:text-amber-400">
+                This action cannot be undone. This will permanently delete the flowchart.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel 
+                onClick={() => setFlowchartToDelete(null)} 
+                className="text-amber-900 dark:text-amber-200 border-amber-800/30"
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => handleDeleteFlowchart(flowchartToDelete.id)} 
+                className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-800"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

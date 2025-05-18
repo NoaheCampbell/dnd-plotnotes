@@ -40,4 +40,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     console.error("Error updating encounter:", error)
     return NextResponse.json({ error: "Failed to update encounter" }, { status: 500 })
   }
+}
+
+export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: "Invalid encounter ID" }, { status: 400 });
+    }
+
+    await prisma.encounters.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ message: "Encounter deleted successfully" }, { status: 200 });
+  } catch (error: any) {
+    console.error("Error deleting encounter:", error);
+    if (error.code === 'P2025') { // Prisma error code for record not found
+      return NextResponse.json({ error: "Encounter not found" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Failed to delete encounter" }, { status: 500 });
+  }
 } 
