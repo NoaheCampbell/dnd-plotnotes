@@ -219,7 +219,7 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
               <div className="px-6 py-5 bg-amber-50/60 dark:bg-stone-900/40">
                 {/* Image at the top if present */}
                 {config.imageField && item[config.imageField] && (
-                  <div className="flex justify-center mb-4">
+                  <div className="flex justify-center mb-6">
                     <img
                       src={item[config.imageField]}
                       alt={item.title || item.name || "Image"}
@@ -227,18 +227,23 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                     />
                   </div>
                 )}
-                {/* Fields as a clean list, only long fields are retractable */}
-                <div className="mb-4 divide-y divide-amber-800/10 dark:divide-amber-800/20 bg-amber-100/20 dark:bg-stone-900/20 rounded">
-                  {entityFields.map((f: any, idx: number) => (
-                    <div key={f.name} className={`py-2 px-2 flex flex-col ${idx === 0 ? "rounded-t" : ""} ${idx === entityFields.length - 1 ? "rounded-b" : ""}`}>
-                      <span className="font-bold text-amber-900 dark:text-amber-200 mb-1">{f.label}</span>
-                      <span className="text-amber-900 dark:text-amber-300 whitespace-pre-line">
-                        {renderValue(item[f.name], f.name)}
-                      </span>
-                    </div>
-                  ))}
+                {/* Fields displayed in a two-column grid */}
+                <div className="mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                    {(config.preview?.enabled && config.preview?.fields && config.preview.fields.length > 0
+                      ? config.preview.fields
+                      : entityFields
+                    ).map((f: any) => (
+                      <div key={f.name} className="flex flex-col">
+                        <span className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-0.5">{f.label}</span>
+                        <span className="text-amber-900 dark:text-amber-300 whitespace-pre-line break-words">
+                          {renderValue(item[f.name], f.name)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-2 flex-wrap mt-2">
+                <div className="flex gap-2 flex-wrap mt-6 pt-4 border-t border-amber-800/10 dark:border-amber-800/20">
                   <Link href={`/${config.label.toLowerCase()}/${item.id}`}>
                     <Button className="bg-amber-900 hover:bg-amber-800 text-amber-100">View Details</Button>
                   </Link>
