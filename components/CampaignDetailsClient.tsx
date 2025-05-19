@@ -96,12 +96,56 @@ export default function CampaignDetailsClient({
   }, [campaign]);
 
   // Helper to open modal for a section
-  const openModal = (section: string, entity: any = null) => {
+  const openModal = (section: string, entityToEdit: any = null) => {
     setOpen(section);
-    if (entity) {
-      setEditEntity(prev => ({ ...prev, [section]: entity }));
+    if (entityToEdit) {
+      // Log the raw entityToEdit as received by the function
+      console.log("CampaignDetailsClient: openModal called with entityToEdit:", entityToEdit);
+
+      const currentSectionConfig = sections.find(s => s.key === section)?.config;
+      const plainDataEntity: { [key: string]: any } = {};
+
+      if (currentSectionConfig && currentSectionConfig.fields) {
+        // Explicitly copy 'id' and 'campaign_id' if they exist and are not undefined
+        if (entityToEdit.id !== undefined) {
+          plainDataEntity.id = entityToEdit.id;
+        }
+        if (entityToEdit.campaign_id !== undefined) {
+          plainDataEntity.campaign_id = entityToEdit.campaign_id;
+        }
+
+        currentSectionConfig.fields.forEach((field: { name: string }) => {
+          // For other configured fields, copy them if they are direct properties of entityToEdit
+          // and not already set (like id/campaign_id if they are also in fields list)
+          if (entityToEdit.hasOwnProperty(field.name)) {
+            // Avoid overwriting id/campaign_id if they were specifically handled and also in fields
+            if (!(field.name === 'id' && plainDataEntity.id !== undefined) && 
+                !(field.name === 'campaign_id' && plainDataEntity.campaign_id !== undefined)) {
+              plainDataEntity[field.name] = entityToEdit[field.name];
+            }
+          } else {
+             // This log helps identify mismatches: configured field not on the actual entity.
+             // Only log if the property isn't 'id' or 'campaign_id' which we handle separately and might not be in every entity's direct props if not set.
+             if (field.name !== 'id' && field.name !== 'campaign_id') {
+                console.warn(`CampaignDetailsClient: Configured field '${field.name}' not found as own property on entityToEdit.`);
+             }
+          }
+        });
+      } else {
+        console.error(`Config not found for section ${section}. Falling back to shallow clone for entity:`, entityToEdit);
+        Object.assign(plainDataEntity, { ...entityToEdit }); 
+      }
+      
+      console.log("CampaignDetailsClient: Constructed plainDataEntity before setting state:", plainDataEntity);
+      setEditEntity(prev => ({ ...prev, [section]: plainDataEntity }));
+
     } else {
        // Default entity for creation, e.g., for sessions
+       if (!campaign || !campaign.id) {
+         toast.error("Cannot add new item: Campaign data is not fully loaded.");
+         setOpen(null); // Ensure modal doesn't inadvertently stay open
+         return;
+       }
        const defaultEntity: { [key: string]: any } = { campaign_id: campaign.id };
        if (section === "sessions") {
          defaultEntity.date = new Date().toISOString().slice(0, 10);
@@ -225,6 +269,7 @@ export default function CampaignDetailsClient({
                       <Button
                         className="bg-amber-800 text-amber-100 hover:bg-amber-700"
                         onClick={() => openModal(section.key)}
+                        disabled={!campaign || !campaign.id}
                       >
                         Add New {section.label.slice(0, -1)}
                       </Button>
@@ -238,6 +283,7 @@ export default function CampaignDetailsClient({
                       onDelete={item => setDeleteEntity(prev => ({ ...prev, [section.key]: item }))}
                     />
                     <GenericEntityForm
+                      key={currentEditEntity ? `edit-${section.key}-${currentEditEntity.id}` : `new-${section.key}`}
                       open={currentOpenModal || currentEditModal}
                       setOpen={v => {
                         if (!v) {

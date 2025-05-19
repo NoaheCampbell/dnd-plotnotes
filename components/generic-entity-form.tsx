@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -25,34 +25,75 @@ export default function GenericEntityForm({
   availableLocations
 }: GenericEntityFormProps) {
   console.log("GenericEntityForm props:", { config, entity, availableLocations });
-  const formRef = useRef<HTMLFormElement>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const formElementRef = useRef<HTMLFormElement>(null);
+  const [formDomIsReady, setFormDomIsReady] = useState(false);
 
   const fields = config.fields;
 
-  // Pre-fill form with entity data if editing
+  const measuredRef = useCallback((node: HTMLFormElement | null) => {
+    formElementRef.current = node;
+    setFormDomIsReady(!!node);
+  }, []);
+
   useEffect(() => {
-    if (formRef.current) {
-      if (entity && open) {
-        fields.forEach((field: any) => {
-          const input = formRef.current?.elements.namedItem(field.name) as HTMLInputElement;
-          if (input) {
-            if (field.type === "select") {
-              input.value = entity[field.name] || '';
+    console.log(
+      "GenericEntityForm: useEffect for pre-fill. Entity:", 
+      entity ? JSON.stringify(entity) : "null/undefined",
+      "Open:", open, 
+      "Form Ref Exists (current check):", !!formElementRef.current,
+      "formDomIsReady State:", formDomIsReady
+    );
+
+    if (!formElementRef.current || !formDomIsReady) {
+      console.log("GenericEntityForm: formElementRef.current is null or formDomIsReady is false, skipping fill/reset.");
+      return;
+    }
+
+    if (entity && open) {
+      console.log("GenericEntityForm: Pre-filling form for entity ID:", entity.id, "Title:", entity.title || entity.name); 
+      fields.forEach((field: any) => {
+        const element = formElementRef.current?.elements.namedItem(field.name);
+        if (element) {
+          const valueToSet = entity[field.name];
+          console.log(`GenericEntityForm: Attempting to fill field '${field.name}' (type: ${field.type}) with value from entity:`, valueToSet);
+          
+          if (field.type === "select" || field.type === "select-location") {
+            (element as HTMLSelectElement).value = valueToSet || '';
+          } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+            if (field.type === 'date' && valueToSet) {
+              element.value = valueToSet instanceof Date 
+                ? valueToSet.toISOString().slice(0,10)
+                : typeof valueToSet === 'string' 
+                  ? valueToSet.slice(0,10) 
+                  : '';
             } else {
-              input.value = entity?.[field.name] instanceof Date
-                ? entity[field.name].toISOString()
-                : entity?.[field.name] || '';
+              element.value = valueToSet instanceof Date 
+                ? valueToSet.toISOString() 
+                : valueToSet || '';
             }
           }
-        });
-        setIsInitialized(true);
-      } else if (!open) {
-        formRef.current.reset();
-        setIsInitialized(false);
+          if (element instanceof HTMLSelectElement) {
+              console.log(`GenericEntityForm: Select Element '${field.name}' value after set: '${element.value}', Selected Index: ${element.selectedIndex}`);
+          } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+              console.log(`GenericEntityForm: Input/Textarea Element '${field.name}' value after set: '${element.value}'`);
+          }
+
+        } else {
+          console.warn(`GenericEntityForm: Element not found in form for field name: '${field.name}'`);
+        }
+      });
+      console.log("GenericEntityForm: Finished pre-filling, isInitialized set to true.");
+    } else if (!open) {
+      console.log("GenericEntityForm: Resetting form because no longer open and form is ready.", "Entity:", entity ? JSON.stringify(entity) : "null/undefined");
+      formElementRef.current.reset();
+    } else {
+      console.log("GenericEntityForm: Not pre-filling (e.g. open but no entity). Entity:", entity ? JSON.stringify(entity) : "null/undefined", "Open:", open);
+      if (formElementRef.current) {
+        formElementRef.current.reset();
+        console.log("GenericEntityForm: Form reset for new entity or empty entity while open.");
       }
     }
-  }, [entity, open, fields]);
+  }, [entity, open, fields, formDomIsReady]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -80,7 +121,6 @@ export default function GenericEntityForm({
     }
   };
 
-  // Group fields by row based on layout
   const groupedFields = fields.reduce((acc: any[], field: any) => {
     const lastGroup = acc[acc.length - 1];
     const width = field.layout?.width || "full";
@@ -110,7 +150,7 @@ export default function GenericEntityForm({
             {entity ? 'Edit' : 'Add'} {config.label.slice(0, -1)}
           </DialogTitle>
         </DialogHeader>
-        <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+        <form ref={measuredRef} onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 overflow-y-auto space-y-4 pr-2">
             {groupedFields.map((row: any[], rowIndex: number) => (
               <div key={rowIndex} className="flex gap-4">
@@ -134,11 +174,6 @@ export default function GenericEntityForm({
                           name={field.name}
                           type="text"
                           required={field.required}
-                          defaultValue={
-                            entity?.[field.name] instanceof Date
-                              ? entity[field.name].toISOString()
-                              : entity?.[field.name] || ''
-                          }
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
                       )}
@@ -147,7 +182,6 @@ export default function GenericEntityForm({
                           id={field.name}
                           name={field.name}
                           required={field.required}
-                          defaultValue={entity?.[field.name] || ''}
                           rows={field.layout?.rows || 3}
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
@@ -158,15 +192,6 @@ export default function GenericEntityForm({
                           name={field.name}
                           type="date"
                           required={field.required}
-                          defaultValue={
-                            entity?.[field.name]
-                              ? entity[field.name] instanceof Date
-                                ? entity[field.name].toISOString().slice(0, 10)
-                                : typeof entity[field.name] === "string"
-                                  ? entity[field.name].slice(0, 10)
-                                  : ""
-                              : ""
-                          }
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
                       )}
@@ -175,7 +200,6 @@ export default function GenericEntityForm({
                           id={field.name}
                           name={field.name}
                           required={field.required}
-                          defaultValue={entity?.[field.name] || ''}
                           className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         >
                           <option value="">Select {field.label}</option>
@@ -191,7 +215,6 @@ export default function GenericEntityForm({
                           id={field.name}
                           name={field.name}
                           required={field.required}
-                          defaultValue={entity?.[field.name] || ''}
                           className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         >
                           <option value="">Select {field.label}</option>
@@ -217,7 +240,6 @@ export default function GenericEntityForm({
                           name={field.name}
                           type="time"
                           required={field.required}
-                          defaultValue={entity?.[field.name] || ''}
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
                       )}

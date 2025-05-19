@@ -53,8 +53,10 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
 
   // When calling onEdit, add a debug log
   const handleEdit = (item: any) => {
-    console.log("Grid onEdit item:", item);
-    onEdit && onEdit(item);
+    console.log("Grid onEdit item (original):", item);
+    const clonedItem = { ...item }; // Create a shallow clone
+    console.log("Grid onEdit item (cloned for non-wikiMode):", clonedItem);
+    onEdit && onEdit(clonedItem); // Pass the clone
   };
 
   if (!gridData.length) {
@@ -135,7 +137,12 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   </Link>
                   <Button
                     className="h-10 min-w-[56px] bg-amber-800 text-amber-100 hover:bg-amber-700"
-                    onClick={handleEdit}
+                    onClick={() => {
+                      console.log("WikiMode Edit clicked for item (original):", item);
+                      const clonedItem = { ...item }; // Create a shallow clone
+                      console.log("WikiMode Edit item (cloned):", clonedItem);
+                      onEdit && onEdit(clonedItem); // Pass the clone
+                    }}
                   >
                     Edit
                   </Button>
@@ -237,11 +244,11 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                       <div key={f.name} className="flex flex-col">
                         <span className="text-sm font-semibold text-amber-700 dark:text-amber-400 mb-0.5">{f.label}</span>
                         <span className="text-amber-900 dark:text-amber-300 whitespace-pre-line break-words">
-                          {renderValue(item[f.name], f.name)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                        {renderValue(item[f.name], f.name)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
                 </div>
                 <div className="flex gap-2 flex-wrap mt-6 pt-4 border-t border-amber-800/10 dark:border-amber-800/20">
                   <Link href={`/${config.label.toLowerCase()}/${item.id}`}>
@@ -249,7 +256,12 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   </Link>
                   <Button
                     className="bg-amber-800 text-amber-100 hover:bg-amber-700"
-                    onClick={handleEdit}
+                    onClick={() => {
+                      console.log("WikiMode Edit clicked for item (original):", item);
+                      const clonedItem = { ...item }; // Create a shallow clone
+                      console.log("WikiMode Edit item (cloned):", clonedItem);
+                      onEdit && onEdit(clonedItem); // Pass the clone
+                    }}
                   >
                     Edit
                   </Button>
