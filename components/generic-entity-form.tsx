@@ -361,6 +361,7 @@ export default function GenericEntityForm({
                           name={field.name} 
                           required={field.required}
                           className="flex h-10 w-full items-center justify-between rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 ring-offset-background placeholder:text-amber-700/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+                          value={selectedEncounterLocationId}
                           onChange={(e) => {
                             setSelectedEncounterLocationId(e.target.value);
                             console.log("Encounter location changed to:", e.target.value);

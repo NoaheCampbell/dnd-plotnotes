@@ -339,56 +339,128 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
       });
 
-      // 3. Process Encounters (prioritizing linked ones)
+      // 3. Process Encounters
+      // First, create all encounter nodes and map them
       apiData.encounters?.forEach((encData: any) => {
-        const nodeId = `encounter-${encData.id}`;
-        const nodeSize = getNodeSize('encounterNode');
-        let position;
-        let targetLocationNode: Node | undefined = undefined;
-        // The API provides encData.location (from encounter.location in DB), which is likely a name string.
-        // encData.campaign_id is the ID of the campaign, not the location.
-        console.log(`Flowchart Sync: Processing Encounter - ID: ${encData.id}, Title: ${encData.title}, API's location field: ${encData.location}`);
+        const encounterNodeId = `encounter-${encData.id}`;
+        let xPos = UNLINKED_X;
+        let yPos = yTrackers.unlinked;
+        // let linkedToTarget = false; // This variable is not used, can be removed or kept if planning future use
 
-        // Attempt to link by encData.location (assumed to be a name string)
-        if (encData.location && typeof encData.location === 'string') { 
-          const encounterLocationNameClean = encData.location.trim().toLowerCase();
-          const entry = Array.from(locationNodeMapByName.entries()).find(([nameInMap]) => nameInMap.trim().toLowerCase() === encounterLocationNameClean);
-          if (entry) {
-            targetLocationNode = entry[1];
-          }
-          console.log(`  Encounter ${encData.id} Attempt (Name '${encData.location}' -> Cleaned '${encounterLocationNameClean}'): Found node -`, targetLocationNode ? targetLocationNode.id : 'Not Found');
-        } else {
-          console.log(`  Encounter ${encData.id} has no location string to lookup.`);
+        // Try to link Encounter to Location
+        let locationNodeForEncounter: Node | undefined = undefined;
+
+        console.log(`Flowchart Sync: Processing Encounter - ID: ${encData.id}, Title: ${encData.title}`);
+        console.log(`  Attempting to link using location_id: '${encData.location_id}', location_name: '${encData.location}'`);
+
+        // Primary linking mechanism: Use location_id (foreign key from encounter to location)
+        if (encData.location_id) {
+          locationNodeForEncounter = allCreatedNodesMap.get(`location-${encData.location_id}`);
         }
 
-        if (targetLocationNode) {
-          const targetY = targetLocationNode.position.y;
-          const nextYForTargetStack = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
+        // Fallback linking mechanism: Use location name if ID-based linking failed or location_id was null
+        // encData.location from the API is the location's name string.
+        if (!locationNodeForEncounter && typeof encData.location === 'string' && encData.location.trim() !== '') {
+          const locationNameFromEncounter = encData.location.trim();
+          let foundByName = locationNodeMapByName.get(locationNameFromEncounter); // Try direct match first
 
-          const actualY = Math.max(nextYForTargetStack, yTrackers.sources);
-          position = { x: SOURCES_X, y: actualY };
-          
-          targetLinkedYTracker.set(targetLocationNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
-          yTrackers.sources = actualY + nodeSize.height + globalNodeSpacingY;
-          
+          if (!foundByName) { // If direct match fails, try case-insensitive comparison
+            const lowerCaseLocationName = locationNameFromEncounter.toLowerCase();
+            for (const [nameInMap, node] of locationNodeMapByName.entries()) {
+              if (nameInMap.trim().toLowerCase() === lowerCaseLocationName) {
+                foundByName = node;
+                break;
+              }
+            }
+          }
+          locationNodeForEncounter = foundByName;
+        }
+        
+        if (locationNodeForEncounter) {
+          console.log(`  Encounter ${encData.id} (${encData.title}) WILL BE LINKED to Location ID: ${locationNodeForEncounter.id} (Name: ${locationNodeForEncounter.data.label})`);
+          xPos = SOURCES_X; // Position as a source to the location
+          const targetNodeId = locationNodeForEncounter.id;
+
+          // Determine yPos: if continuing a stack, use stack tracker; otherwise, consider target Y and column Y.
+          if (targetLinkedYTracker.has(targetNodeId)) {
+            yPos = targetLinkedYTracker.get(targetNodeId)!; // Non-null assertion as .has(targetNodeId) is true
+          } else {
+            yPos = Math.max(locationNodeForEncounter.position.y, yTrackers.sources);
+          }
+
+          targetLinkedYTracker.set(targetNodeId, yPos + getNodeSize('encounterNode').height + linkedNodeSpacingY);
+          yTrackers.sources = Math.max(yTrackers.sources, yPos + getNodeSize('encounterNode').height + globalNodeSpacingY);
+
           newEdges.push({
-            id: `edge-${nodeId}-${targetLocationNode.id}`,
-            source: nodeId,
-            target: targetLocationNode.id,
-            sourceHandle: 'right',
+            id: `edge-${encounterNodeId}-to-${targetNodeId}`,
+            source: encounterNodeId,
+            target: targetNodeId,
+            sourceHandle: 'right', 
             targetHandle: 'left',
+            type: 'smoothstep', 
+            animated: false,
+            style: { stroke: '#A1A1AA', strokeWidth: 2 }, // Zinc color for associations
           });
-          const encounterNode: Node = {
-            id: nodeId,
-            type: 'encounterNode',
-            position,
-            data: { label: encData.title || `Encounter ${encData.id}` },
-            style: { width: nodeSize.width, height: nodeSize.height },
-          };
-          newNodes.push(encounterNode);
-          allCreatedNodesMap.set(nodeId, encounterNode);
         } else {
-          unlinkedEncounterData.push(encData); // Defer processing
+          console.log(`  Encounter ${encData.id} (${encData.title}) WILL NOT BE LINKED. No location found.`);
+          // If still not linked, update yTracker for the UNLINKED_X column before placing the node
+          yPos = yTrackers.unlinked; // Use current unlinked Y
+          yTrackers.unlinked += getNodeSize('encounterNode').height + globalNodeSpacingY; // Increment for next unlinked
+        }
+
+        const encounterNode: Node = {
+          id: encounterNodeId,
+          type: 'encounterNode',
+          data: { 
+            label: encData.title || 'Unnamed Encounter', 
+            entityData: encData, 
+            onLabelChange: (nodeId: string, newLabel: string) => {
+              setNodes((nds) =>
+                nds.map((node) => {
+                  if (node.id === nodeId) {
+                    // Preserve other data properties while updating label
+                    return { ...node, data: { ...node.data, label: newLabel } };
+                  }
+                  return node;
+                })
+              );
+            }
+          },
+          position: { x: xPos, y: yPos },
+          style: getNodeSize('encounterNode'),
+        };
+        newNodes.push(encounterNode);
+        allCreatedNodesMap.set(encounterNodeId, encounterNode);
+
+        // NEW: Create edges from Encounter to its NPCs
+        if (encData.npcs && Array.isArray(encData.npcs)) {
+          encData.npcs.forEach((npcRef: { id: number }) => {
+            const npcNodeId = `npc-${npcRef.id}`;
+            const npcNode = allCreatedNodesMap.get(npcNodeId);
+
+            if (npcNode) {
+              // Check if an edge already exists (e.g. from NPC to Encounter) to avoid duplicates if logic allows both
+              const edgeExists = newEdges.some(
+                edge => (edge.source === encounterNodeId && edge.target === npcNodeId) ||
+                        (edge.source === npcNodeId && edge.target === encounterNodeId)
+              );
+
+              if (!edgeExists) {
+                 newEdges.push({
+                  id: `edge-${encounterNodeId}-to-${npcNodeId}`,
+                  source: encounterNodeId,
+                  target: npcNodeId,
+                  sourceHandle: 'right', // Assuming Encounter to NPC is right-to-left
+                  targetHandle: 'left',
+                  type: 'smoothstep',
+                  animated: false,
+                  style: { stroke: '#71717A', strokeWidth: 1.5, strokeDasharray: '5,5' }, // Dashed line for NPC connection
+                });
+              }
+            } else {
+              console.warn(`Encounter-NPC Link: NPC node with ID ${npcNodeId} not found for encounter ${encounterNodeId}`);
+            }
+          });
         }
       });
       
