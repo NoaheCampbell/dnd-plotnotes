@@ -63,46 +63,135 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   );
 
   const isValidConnection = useCallback((connection: Connection) => {
+    console.log("isValidConnection raw connection object:", connection); // Log the raw connection object
+
     const sourceNode = nodes.find((node) => node.id === connection.source);
     const targetNode = nodes.find((node) => node.id === connection.target);
 
+    // Log found nodes for verification
+    console.log("isValidConnection found sourceNode:", sourceNode ? { id: sourceNode.id, type: sourceNode.type, data: sourceNode.data } : null);
+    console.log("isValidConnection found targetNode:", targetNode ? { id: targetNode.id, type: targetNode.type, data: targetNode.data } : null);
+
     if (!sourceNode || !targetNode) {
-      console.warn("isValidConnection: source or target node not found");
+      console.warn("isValidConnection: source or target node not found for the connection attempt.");
       return false;
     }
 
     const sourceType = sourceNode.type;
     const targetType = targetNode.type;
+    const sourceHandle = connection.sourceHandle;
+    const targetHandle = connection.targetHandle;
 
-    // Rule 1: Location to Location
-    if (sourceType === 'locationNode' && targetType === 'locationNode') {
+    console.log(`Attempting: ${sourceType} (${sourceHandle}) -> ${targetType} (${targetHandle})`);
+
+    // REMOVE TEMPORARY DEBUG RULE
+    // if (sourceType === 'npcNode' && targetType === 'locationNode') {
+    //   console.log("TEMP RULE: Allowing ANY NPC -> Location connection for debugging.");
+    //   return true;
+    // }
+
+    // --- General Rule for Vertical "Segway" Connections (Bottom to Top) ---
+    if (sourceHandle === 'bottom' && targetHandle === 'top') {
+      console.log(`Allowing Segway: ${sourceType} (bottom) -> ${targetType} (top)`);
       return true;
     }
 
-    // Rule 2: NPC to Location
-    if (sourceType === 'npcNode' && targetType === 'locationNode') {
+    // --- Rules for Horizontal/Side "Association" Connections ---
+    // Rule 2: Location to Location (Horizontal)
+    if (sourceType === 'locationNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Location (right) -> Location (left)");
       return true;
     }
 
-    // Rule 3: Note to Location
-    if (sourceType === 'noteNode' && targetType === 'locationNode') {
+    // Rule 3: NPC to Location (Side connection)
+    if (sourceType === 'npcNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: NPC (right) -> Location (left)");
       return true;
     }
 
-    // Rule 4: Encounter to Location
-    if (sourceType === 'encounterNode' && targetType === 'locationNode') {
+    // Rule 4: Note to Location (Side connection)
+    if (sourceType === 'noteNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Note (right) -> Location (left)");
       return true;
     }
-    
-    // If you want to prevent connections from a specific handle type to another
-    // you can also check connection.sourceHandle and connection.targetHandle here.
-    // For example:
-    // if (connection.sourceHandle === 'a' && connection.targetHandle === 'b') return true;
 
-    // Default: Disallow other connections
-    toast.error(`Invalid connection: ${sourceType} cannot connect to ${targetType}`);
+    // Rule 5: Encounter to Location (Side connection)
+    if (sourceType === 'encounterNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Encounter (right) -> Location (left)");
+      return true;
+    }
+
+    // --- Add new rules for Location -> Other Nodes (Side connections) ---
+    // Rule 6: Location to NPC (Side connection)
+    if (sourceType === 'locationNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Location (right) -> NPC (left)");
+      return true;
+    }
+
+    // Rule 7: Location to Note (Side connection)
+    if (sourceType === 'locationNode' && targetType === 'noteNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Location (right) -> Note (left)");
+      return true;
+    }
+
+    // Rule 8: Location to Encounter (Side connection)
+    if (sourceType === 'locationNode' && targetType === 'encounterNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Location (right) -> Encounter (left)");
+      return true;
+    }
+
+    // --- Add new rules for Note <-> NPC --- 
+    // Rule 9: Note to NPC (Side connection)
+    if (sourceType === 'noteNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Note (right) -> NPC (left)");
+      return true;
+    }
+    // Rule 10: NPC to Note (Side connection)
+    if (sourceType === 'npcNode' && targetType === 'noteNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: NPC (right) -> Note (left)");
+      return true;
+    }
+
+    // --- Add new rules for Encounter <-> NPC ---
+    // Rule 11: Encounter to NPC (Side connection)
+    if (sourceType === 'encounterNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Encounter (right) -> NPC (left)");
+      return true;
+    }
+    // Rule 12: NPC to Encounter (Side connection)
+    if (sourceType === 'npcNode' && targetType === 'encounterNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: NPC (right) -> Encounter (left)");
+      return true;
+    }
+
+    // --- Add new rules for NPC <-> NPC ---
+    // Rule 13: NPC to NPC (Horizontal right-to-left)
+    if (sourceType === 'npcNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: NPC (right) -> NPC (left)");
+      return true;
+    }
+    // Rule 14: NPC to NPC (Vertical bottom-to-top) - Covered by general segway rule
+    // if (sourceType === 'npcNode' && targetType === 'npcNode' && sourceHandle === 'bottom' && targetHandle === 'top') {
+    //   console.log("Allowing: NPC (bottom) -> NPC (top)");
+    //   return true;
+    // }
+
+    // --- Add new rules for Encounter <-> Note ---
+    // Rule 15: Encounter to Note (Side connection)
+    if (sourceType === 'encounterNode' && targetType === 'noteNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Encounter (right) -> Note (left)");
+      return true;
+    }
+    // Rule 16: Note to Encounter (Side connection)
+    if (sourceType === 'noteNode' && targetType === 'encounterNode' && sourceHandle === 'right' && targetHandle === 'left') {
+      console.log("Allowing: Note (right) -> Encounter (left)");
+      return true;
+    }
+
+    console.log(`Disallowing connection: ${sourceType} (${sourceHandle}) -> ${targetType} (${targetHandle})`);
+    toast.error(`Invalid connection: ${sourceType} (${sourceHandle || 'any'}) cannot connect to ${targetType} (${targetHandle || 'any'}) using these handles.`);
     return false;
-  }, [nodes]); // Add nodes as a dependency
+  }, [nodes]);
 
   const syncFlowchartWithCampaignData = useCallback(async () => {
     if (!campaignId) {

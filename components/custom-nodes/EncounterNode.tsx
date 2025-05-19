@@ -59,6 +59,8 @@ const EncounterNode: React.FC<NodeProps<EncounterNodeData>> = ({ data, isConnect
         lineClassName={`border-2 ${isDarkMode ? 'border-red-500' : 'border-red-400'}`}
         handleClassName={`h-3 w-3 rounded-full border-2 ${isDarkMode ? 'bg-red-500 border-gray-800' : 'bg-red-400 border-white'}`}
       />
+      {/* <Handle id="top" type="target" position={Position.Top} isConnectable={isConnectable} style={{...handleStyle, top: '-5px'}} /> */}
+      {/* <Handle id="bottom" type="source" position={Position.Bottom} isConnectable={isConnectable} style={{...handleStyle, bottom: '-5px'}} /> */}
       <Handle id="top" type="target" position={Position.Top} isConnectable={isConnectable} style={{...handleStyle, top: '-5px'}} />
       <Handle id="bottom" type="source" position={Position.Bottom} isConnectable={isConnectable} style={{...handleStyle, bottom: '-5px'}} />
       <Handle id="left" type="target" position={Position.Left} isConnectable={isConnectable} style={{...handleStyle, left: '-5px'}} />

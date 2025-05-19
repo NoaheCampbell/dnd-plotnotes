@@ -63,8 +63,8 @@ const NPCNode: React.FC<NodeProps<NPCNodeData>> = ({ data, isConnectable, select
         handleClassName={`h-3 w-3 rounded-full border-2 ${isDarkMode ? 'bg-sky-400 border-gray-800' : 'bg-sky-500 border-white'}`} // Adjusted resizer handle colors for NPC theme
       />
       {/* Handles are children of the outer div, positioned relative to it */}
-      {/* <Handle id="top" type="target" position={Position.Top} isConnectable={isConnectable} style={handleStyle} /> */}
-      {/* <Handle id="bottom" type="source" position={Position.Bottom} isConnectable={isConnectable} style={handleStyle} /> */}
+      <Handle id="top" type="target" position={Position.Top} isConnectable={isConnectable} style={handleStyle} />
+      <Handle id="bottom" type="source" position={Position.Bottom} isConnectable={isConnectable} style={handleStyle} />
       <Handle id="left" type="target" position={Position.Left} isConnectable={isConnectable} style={{...handleStyle, left: '-5px'}} />
       <Handle id="right" type="source" position={Position.Right} isConnectable={isConnectable} style={{...handleStyle, right: '-5px'}} />
       

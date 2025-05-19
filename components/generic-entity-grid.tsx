@@ -53,9 +53,7 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
 
   // When calling onEdit, add a debug log
   const handleEdit = (item: any) => {
-    console.log("Grid onEdit item (original):", item);
     const clonedItem = { ...item }; // Create a shallow clone
-    console.log("Grid onEdit item (cloned for non-wikiMode):", clonedItem);
     onEdit && onEdit(clonedItem); // Pass the clone
   };
 
@@ -138,9 +136,7 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   <Button
                     className="h-10 min-w-[56px] bg-amber-800 text-amber-100 hover:bg-amber-700"
                     onClick={() => {
-                      console.log("WikiMode Edit clicked for item (original):", item);
                       const clonedItem = { ...item }; // Create a shallow clone
-                      console.log("WikiMode Edit item (cloned):", clonedItem);
                       onEdit && onEdit(clonedItem); // Pass the clone
                     }}
                   >
@@ -257,9 +253,7 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
                   <Button
                     className="bg-amber-800 text-amber-100 hover:bg-amber-700"
                     onClick={() => {
-                      console.log("WikiMode Edit clicked for item (original):", item);
                       const clonedItem = { ...item }; // Create a shallow clone
-                      console.log("WikiMode Edit item (cloned):", clonedItem);
                       onEdit && onEdit(clonedItem); // Pass the clone
                     }}
                   >

@@ -24,7 +24,6 @@ export default function GenericEntityForm({
   entity,
   availableLocations
 }: GenericEntityFormProps) {
-  console.log("GenericEntityForm props:", { config, entity, availableLocations });
   const formElementRef = useRef<HTMLFormElement>(null);
   const [formDomIsReady, setFormDomIsReady] = useState(false);
 
@@ -36,26 +35,16 @@ export default function GenericEntityForm({
   }, []);
 
   useEffect(() => {
-    console.log(
-      "GenericEntityForm: useEffect for pre-fill. Entity:", 
-      entity ? JSON.stringify(entity) : "null/undefined",
-      "Open:", open, 
-      "Form Ref Exists (current check):", !!formElementRef.current,
-      "formDomIsReady State:", formDomIsReady
-    );
 
     if (!formElementRef.current || !formDomIsReady) {
-      console.log("GenericEntityForm: formElementRef.current is null or formDomIsReady is false, skipping fill/reset.");
       return;
     }
 
     if (entity && open) {
-      console.log("GenericEntityForm: Pre-filling form for entity ID:", entity.id, "Title:", entity.title || entity.name); 
       fields.forEach((field: any) => {
         const element = formElementRef.current?.elements.namedItem(field.name);
         if (element) {
           const valueToSet = entity[field.name];
-          console.log(`GenericEntityForm: Attempting to fill field '${field.name}' (type: ${field.type}) with value from entity:`, valueToSet);
           
           if (field.type === "select" || field.type === "select-location") {
             (element as HTMLSelectElement).value = valueToSet || '';
@@ -73,24 +62,18 @@ export default function GenericEntityForm({
             }
           }
           if (element instanceof HTMLSelectElement) {
-              console.log(`GenericEntityForm: Select Element '${field.name}' value after set: '${element.value}', Selected Index: ${element.selectedIndex}`);
           } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-              console.log(`GenericEntityForm: Input/Textarea Element '${field.name}' value after set: '${element.value}'`);
           }
 
         } else {
           console.warn(`GenericEntityForm: Element not found in form for field name: '${field.name}'`);
         }
       });
-      console.log("GenericEntityForm: Finished pre-filling, isInitialized set to true.");
     } else if (!open) {
-      console.log("GenericEntityForm: Resetting form because no longer open and form is ready.", "Entity:", entity ? JSON.stringify(entity) : "null/undefined");
       formElementRef.current.reset();
     } else {
-      console.log("GenericEntityForm: Not pre-filling (e.g. open but no entity). Entity:", entity ? JSON.stringify(entity) : "null/undefined", "Open:", open);
       if (formElementRef.current) {
         formElementRef.current.reset();
-        console.log("GenericEntityForm: Form reset for new entity or empty entity while open.");
       }
     }
   }, [entity, open, fields, formDomIsReady]);
@@ -155,7 +138,6 @@ export default function GenericEntityForm({
             {groupedFields.map((row: any[], rowIndex: number) => (
               <div key={rowIndex} className="flex gap-4">
                 {row.map((field: any) => {
-                  console.log("Field being rendered:", field);
                   return (
                     <div 
                       key={field.name} 

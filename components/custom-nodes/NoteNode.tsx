@@ -56,6 +56,8 @@ const NoteNode: React.FC<NodeProps<NoteNodeData>> = ({ data, isConnectable, sele
         lineClassName={`border-2 ${isDarkMode ? 'border-amber-500' : 'border-amber-400'}`}
         handleClassName={`h-3 w-3 rounded-full border-2 ${isDarkMode ? 'bg-amber-500 border-gray-800' : 'bg-amber-400 border-white'}`}
       />
+      {/* <Handle id="top" type="target" position={Position.Top} isConnectable={isConnectable} style={handleStyle} /> */}
+      {/* <Handle id="bottom" type="source" position={Position.Bottom} isConnectable={isConnectable} style={handleStyle} /> */}
       <Handle id="top" type="target" position={Position.Top} isConnectable={isConnectable} style={handleStyle} />
       <Handle id="bottom" type="source" position={Position.Bottom} isConnectable={isConnectable} style={handleStyle} />
       <Handle id="left" type="target" position={Position.Left} isConnectable={isConnectable} style={{...handleStyle, left: '-5px'}} />

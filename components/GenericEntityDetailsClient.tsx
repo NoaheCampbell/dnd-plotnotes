@@ -32,7 +32,6 @@ export default function GenericEntityDetailsClient({
   const imageField = config.imageField;
 
   // Debug: log the entity object to check what fields are present
-  console.log("NPC entity:", entity);
 
   async function handleDelete() {
     // Parse entity type from apiPath (e.g., '/npcs' -> 'npcs')

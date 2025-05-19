@@ -99,9 +99,6 @@ export default function CampaignDetailsClient({
   const openModal = (section: string, entityToEdit: any = null) => {
     setOpen(section);
     if (entityToEdit) {
-      // Log the raw entityToEdit as received by the function
-      console.log("CampaignDetailsClient: openModal called with entityToEdit:", entityToEdit);
-
       const currentSectionConfig = sections.find(s => s.key === section)?.config;
       const plainDataEntity: { [key: string]: any } = {};
 
@@ -136,7 +133,6 @@ export default function CampaignDetailsClient({
         Object.assign(plainDataEntity, { ...entityToEdit }); 
       }
       
-      console.log("CampaignDetailsClient: Constructed plainDataEntity before setting state:", plainDataEntity);
       setEditEntity(prev => ({ ...prev, [section]: plainDataEntity }));
 
     } else {
