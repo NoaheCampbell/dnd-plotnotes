@@ -12,6 +12,9 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
   const [search, setSearch] = useState("");
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
+  const [allNpcs, setAllNpcs] = useState<any[]>([]);
+  const [allItems, setAllItems] = useState<any[]>([]);
+  const [allEncounters, setAllEncounters] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(config.api)
@@ -38,6 +41,11 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
         .then(async (res) => res.ok ? res.json() : [])
         .then(setLocations)
         .catch(() => setLocations([]));
+      if (entity === "notes") {
+        fetch("/api/npcs").then(res => res.ok ? res.json() : []).then(setAllNpcs).catch(() => setAllNpcs([]));
+        fetch("/api/items").then(res => res.ok ? res.json() : []).then(setAllItems).catch(() => setAllItems([]));
+        fetch("/api/encounters").then(res => res.ok ? res.json() : []).then(setAllEncounters).catch(() => setAllEncounters([]));
+      }
     }
   }, [config.api, entity]);
 
@@ -90,6 +98,9 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
           campaigns={campaigns}
           entity={editEntity || undefined}
           availableLocations={locations}
+          allNpcs={allNpcs}
+          allItems={allItems}
+          allEncounters={allEncounters}
         />
       </div>
     </div>

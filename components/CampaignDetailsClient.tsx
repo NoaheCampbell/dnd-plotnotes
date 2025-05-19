@@ -288,7 +288,7 @@ export default function CampaignDetailsClient({
                         // setOpen needs to be handled carefully if it's a string or boolean
                       }}
                       config={getFullEntityConfig(section.config, `/${section.key}`, campaigns)}
-                      availableLocations={(section.key === 'encounters' || section.key === 'npcs') ? sectionData.locations : undefined}
+                      availableLocations={(section.key === 'encounters' || section.key === 'npcs' || section.key === 'notes') ? sectionData.locations : undefined}
                       onCreated={newEntity => {
                         setSectionData(prev => ({
                           ...prev,
@@ -300,6 +300,9 @@ export default function CampaignDetailsClient({
                       }}
                       campaigns={campaigns}
                       entity={currentEditEntity || undefined}
+                      allNpcs={section.key === 'notes' ? sectionData.npcs : undefined}
+                      allItems={section.key === 'notes' ? sectionData.items : undefined}
+                      allEncounters={section.key === 'notes' ? sectionData.encounters : undefined}
                     />
                     {deleteEntity[section.key] && (
                       <Dialog open={!!deleteEntity[section.key]} onOpenChange={() => setDeleteEntity(prev => ({...prev, [section.key]: null}))}>

@@ -13,6 +13,9 @@ interface GenericEntityDetailsClientProps {
   apiPath: string;
   campaigns?: any[];
   campaignLocations?: Array<{ id: any; name: string; [key: string]: any; }>;
+  allNpcs?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
+  allItems?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
+  allEncounters?: Array<{ id: any; title: string; campaign_id?: any; [key: string]: any; }>;
 }
 
 export default function GenericEntityDetailsClient({
@@ -20,7 +23,10 @@ export default function GenericEntityDetailsClient({
   config,
   apiPath,
   campaigns = [],
-  campaignLocations
+  campaignLocations,
+  allNpcs,
+  allItems,
+  allEncounters,
 }: GenericEntityDetailsClientProps) {
   const fullConfig = getFullEntityConfig(config, apiPath, campaigns);
   const [editOpen, setEditOpen] = useState(false);
@@ -107,7 +113,10 @@ export default function GenericEntityDetailsClient({
           onCreated={() => window.location.reload()}
           campaigns={campaigns}
           entity={entity}
-          availableLocations={config.label === 'NPCs' ? campaignLocations : undefined}
+          availableLocations={(config.label === 'Encounters' || config.label === 'NPCs' || config.label === 'Notes') ? campaignLocations : undefined}
+          allNpcs={allNpcs}
+          allItems={allItems}
+          allEncounters={allEncounters}
         />
         {/* Delete Modal */}
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

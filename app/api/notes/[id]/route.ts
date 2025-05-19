@@ -7,28 +7,39 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const campaign_id = formData.get("campaign_id") as string | null
   const title = formData.get("title") as string | null
   const content = formData.get("content") as string | null
+  const linked_entity_type = formData.get("linked_entity_type") as string | null;
+  const linked_entity_id_str = formData.get("linked_entity_id") as string | null;
+  const linked_entity_name = formData.get("linked_entity_name") as string | null;
 
-  if (!campaign_id || !title) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  const linked_entity_id = linked_entity_id_str ? parseInt(linked_entity_id_str, 10) : null;
+
+  // Basic validation, can be expanded
+  if (!title) { // campaign_id might be optional if a note isn't campaign-specific
+    return NextResponse.json({ error: "Title is a required field" }, { status: 400 })
   }
 
   try {
+    const dataToUpdate: any = {
+      title,
+      content: content || null,
+      linked_entity_type: linked_entity_type,
+      linked_entity_id: linked_entity_id,
+      linked_entity_name: linked_entity_name,
+    };
+
+    if (campaign_id) {
+      dataToUpdate.campaign_id = Number(campaign_id);
+    }
+
     const note = await prisma.notes.update({
       where: { id },
-      data: {
-        campaign_id: Number(campaign_id),
-        title,
-        content: content || null,
-      },
+      data: dataToUpdate,
       include: {
         campaigns: true,
       },
     })
     return NextResponse.json({
-      id: note.id,
-      title: note.title,
-      content: note.content,
-      created_at: note.created_at,
+      ...note,
       campaign: note.campaigns?.title || "",
     })
   } catch (error) {

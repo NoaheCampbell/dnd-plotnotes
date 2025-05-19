@@ -65,7 +65,25 @@ export const entitiesConfig = {
     api: "/api/notes",
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
-      { name: "content", label: "Content", type: "text" },
+      {
+        name: "linked_entity_type",
+        label: "Link Type",
+        type: "select",
+        layout: { width: "half" },
+        options: [
+          { value: "", label: "None (General Note)" },
+          { value: "campaign", label: "Campaign" },
+          { value: "location", label: "Location" },
+          { value: "npc", label: "NPC" },
+          { value: "item", label: "Item" },
+          { value: "encounter", label: "Encounter" },
+          // Add other linkable entity types here if needed
+        ]
+      },
+      // A placeholder or dynamically shown field for the selected entity ID/Name will be handled in the form component
+      // For now, we don't define a static field for linked_entity_id or linked_entity_name here,
+      // as their presentation depends on linked_entity_type.
+      { name: "content", label: "Content", type: "longtext", layout: { width: "full", rows: 6 } },
     ],
     imageField: undefined,
     descriptionField: "content",

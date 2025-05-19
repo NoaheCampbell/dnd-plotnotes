@@ -5,7 +5,12 @@ export async function POST(req: Request) {
   const formData = await req.formData();
   const campaign_id = formData.get("campaign_id");
   const title = formData.get("title");
-  const content = formData.get("content") || null;
+  const content = formData.get("content") as string | null;
+  const linked_entity_type = formData.get("linked_entity_type") as string | null;
+  const linked_entity_id_str = formData.get("linked_entity_id") as string | null;
+  const linked_entity_name = formData.get("linked_entity_name") as string | null;
+
+  const linked_entity_id = linked_entity_id_str ? parseInt(linked_entity_id_str, 10) : null;
 
   if (!campaign_id || !title) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -16,18 +21,18 @@ export async function POST(req: Request) {
       data: {
         campaign_id: Number(campaign_id),
         title: title as string,
-        content: content as string | null,
+        content: content,
+        linked_entity_type: linked_entity_type,
+        linked_entity_id: linked_entity_id,
+        linked_entity_name: linked_entity_name,
       },
       include: {
         campaigns: true,
       },
     });
     return NextResponse.json({
-      id: note.id,
-      title: note.title,
-      content: note.content,
-      created_at: note.created_at,
-      campaign: note.campaigns?.title || "",
+      ...note,
+      campaign: note.campaigns?.title || "", // Keep this for now, but consider if campaigns relation is always needed
     });
   } catch (error) {
     console.error("Error creating note:", error);
@@ -43,11 +48,8 @@ export async function GET() {
       },
       orderBy: { id: "desc" },
     });
-    const mapped = notes.map((n: any) => ({
-      id: n.id,
-      title: n.title,
-      content: n.content,
-      created_at: n.created_at,
+    const mapped = notes.map((n) => ({
+      ...n,
       campaign: n.campaigns?.title || "",
     }));
     return NextResponse.json(mapped);

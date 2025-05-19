@@ -13,6 +13,9 @@ interface GenericEntityFormProps {
   campaigns?: any[];
   entity?: any;
   availableLocations?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
+  allNpcs?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
+  allItems?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
+  allEncounters?: Array<{ id: any; title: string; campaign_id?: any; [key: string]: any; }>;
 }
 
 export default function GenericEntityForm({ 
@@ -22,12 +25,83 @@ export default function GenericEntityForm({
   onCreated, 
   campaigns = [],
   entity,
-  availableLocations
+  availableLocations,
+  allNpcs,
+  allItems,
+  allEncounters,
 }: GenericEntityFormProps) {
   const formElementRef = useRef<HTMLFormElement>(null);
   const [formDomIsReady, setFormDomIsReady] = useState(false);
 
   const fields = config.fields;
+
+  // State for dynamic entity linking (for Notes)
+  const [selectedEntityType, setSelectedEntityType] = useState<string>('');
+  const [availableEntitiesForLink, setAvailableEntitiesForLink] = useState<any[]>([]);
+  const [selectedLinkedEntityId, setSelectedLinkedEntityId] = useState<string | number>(''); // Store as string to match select value, parse on submit
+  const [isLoadingLinkedEntities, setIsLoadingLinkedEntities] = useState<boolean>(false);
+
+  // Effect to initialize form state for editing a Note with a linked entity
+  useEffect(() => {
+    if (config.label === 'Notes' && entity && open) {
+      const initialEntityType = entity.linked_entity_type || '';
+      setSelectedEntityType(initialEntityType);
+      setSelectedLinkedEntityId(entity.linked_entity_id || '');
+      // The actual list for availableEntitiesForLink will be populated by the next effect
+      // based on initialEntityType
+    } else if (!open) {
+      // Reset state when dialog closes
+      setSelectedEntityType('');
+      setAvailableEntitiesForLink([]);
+      setSelectedLinkedEntityId('');
+    }
+  }, [entity, open, config.label]);
+
+  // Effect to update the list of available entities when entity type changes or on initial load for edit
+  useEffect(() => {
+    if (config.label !== 'Notes' || !selectedEntityType) {
+      setAvailableEntitiesForLink([]);
+      // If not a Note or no entity type selected, also clear the ID unless it was pre-filled from 'entity'
+      // This part is tricky: if entity.linked_entity_id was set, we want to keep it until type changes
+      // For now, let's clear if type is cleared:
+      if (!selectedEntityType) setSelectedLinkedEntityId('');
+      return;
+    }
+
+    setIsLoadingLinkedEntities(true);
+    let entities: any[] = [];
+    switch (selectedEntityType) {
+      case 'campaign':
+        entities = campaigns || [];
+        break;
+      case 'location':
+        entities = availableLocations || [];
+        break;
+      case 'npc':
+        entities = allNpcs || [];
+        break;
+      case 'item':
+        entities = allItems || [];
+        break;
+      case 'encounter':
+        entities = allEncounters || [];
+        break;
+      default:
+        entities = [];
+        break;
+    }
+    setAvailableEntitiesForLink(entities);
+    setIsLoadingLinkedEntities(false);
+
+    // If the initially loaded entity.linked_entity_id doesn't match the new list of entities for the selected type,
+    // clear it. This avoids an invalid selection if the type was changed after initial load.
+    // However, if selectedLinkedEntityId was already set from the entity prop and matches the current selectedEntityType,
+    // we should try to keep it. This logic might need refinement based on desired UX.
+    // For now, if the selectedEntityType changes, we might want to clear selectedLinkedEntityId unless it's the initial load.
+    // The first useEffect already sets selectedLinkedEntityId from entity.
+    // So this effect primarily populates the list. We don't clear selectedLinkedEntityId here to allow pre-selection.
+
+  }, [selectedEntityType, campaigns, availableLocations, allNpcs, allItems, allEncounters, config.label]);
 
   const measuredRef = useCallback((node: HTMLFormElement | null) => {
     formElementRef.current = node;
@@ -82,6 +156,22 @@ export default function GenericEntityForm({
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
+    
+    // If this is a Note and an entity is selected, add its ID and Name to formData
+    if (config.label === 'Notes' && selectedEntityType && selectedLinkedEntityId) {
+      formData.set('linked_entity_id', String(selectedLinkedEntityId));
+      const selectedEntity = availableEntitiesForLink.find(e => String(e.id) === String(selectedLinkedEntityId));
+      if (selectedEntity) {
+        formData.set('linked_entity_name', selectedEntity.name || selectedEntity.title || '');
+      } else {
+        formData.set('linked_entity_name', ''); // Should not happen if selectedLinkedEntityId is valid
+      }
+    } else if (config.label === 'Notes') {
+      // If it's a note but no entity type is selected or no specific entity is selected, ensure these fields are empty or not set
+      formData.delete('linked_entity_id');
+      formData.delete('linked_entity_name');
+      // linked_entity_type will be set to "" if "None" was selected, which is fine.
+    }
     
     const isEdit = entity && entity.id;
     const url = isEdit ? `${config.api}/${entity.id}` : config.api;
@@ -182,6 +272,13 @@ export default function GenericEntityForm({
                           id={field.name}
                           name={field.name}
                           required={field.required}
+                          value={field.name === 'linked_entity_type' && config.label === 'Notes' ? selectedEntityType : undefined}
+                          onChange={e => {
+                            if (field.name === 'linked_entity_type' && config.label === 'Notes') {
+                              setSelectedEntityType(e.target.value);
+                              setSelectedLinkedEntityId('');
+                            }
+                          }}
                           className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         >
                           <option value="">Select {field.label}</option>
@@ -224,6 +321,34 @@ export default function GenericEntityForm({
                           required={field.required}
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
+                      )}
+                      {config.label === 'Notes' && field.name === 'linked_entity_type' && selectedEntityType && !isLoadingLinkedEntities && availableEntitiesForLink.length > 0 && (
+                        <div className="space-y-2 mt-2 w-full">
+                          <Label htmlFor="linked_entity_id" className="text-amber-900 dark:text-amber-200">
+                            Link To {selectedEntityType.charAt(0).toUpperCase() + selectedEntityType.slice(1)}
+                          </Label>
+                          <select
+                            id="linked_entity_id"
+                            name="linked_entity_id_select"
+                            value={selectedLinkedEntityId}
+                            onChange={e => setSelectedLinkedEntityId(e.target.value)}
+                            required
+                            className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+                          >
+                            <option value="">Select {selectedEntityType.charAt(0).toUpperCase() + selectedEntityType.slice(1)}</option>
+                            {availableEntitiesForLink.map(item => (
+                              <option key={item.id} value={item.id}>
+                                {item.name || item.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {config.label === 'Notes' && field.name === 'linked_entity_type' && selectedEntityType && isLoadingLinkedEntities && (
+                        <p className="mt-2 text-amber-700 dark:text-amber-400">Loading entities...</p>
+                      )}
+                      {config.label === 'Notes' && field.name === 'linked_entity_type' && selectedEntityType && !isLoadingLinkedEntities && availableEntitiesForLink.length === 0 && (
+                        <p className="mt-2 text-amber-700 dark:text-amber-400">No {selectedEntityType}s available to link.</p>
                       )}
                     </div>
                   );
