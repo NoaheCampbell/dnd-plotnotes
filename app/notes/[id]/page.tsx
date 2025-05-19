@@ -38,7 +38,7 @@ export default async function NoteDetailsPage({ params }: NotePageProps) {
     config={entitiesConfig.notes} 
     apiPath="/notes" 
     campaigns={allCampaigns} 
-    availableLocations={allLocations} 
+    campaignLocations={allLocations}
     allNpcs={allNpcs}
     allItems={allItems}
     allEncounters={allEncounters}

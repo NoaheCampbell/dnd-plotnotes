@@ -236,9 +236,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       // Trackers for Y positions within columns
       const yTrackers = {
         unlinked: yOffset,
+        sources: yOffset, // Added for the SOURCES_X column
         targets: yOffset,
-        // Y positions for sources linking to specific targets will be managed by targetLinkedYTracker
       };
+
+      const unlinkedNpcData: any[] = [];
+      const unlinkedEncounterData: any[] = [];
+      const unlinkedNoteData: any[] = [];
 
       // Map to store next Y position for sources linking to a specific target node ID
       const targetLinkedYTracker = new Map<string, number>();
@@ -277,24 +281,23 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
       };
       
-      // 2. Process NPCs
+      // 2. Process NPCs (prioritizing linked ones)
       apiData.npcs?.forEach((npcData: any) => {
         const nodeId = `npc-${npcData.id}`;
         const nodeSize = getNodeSize('npcNode');
         let position;
-        let isLinked = false;
 
-        // Assuming npcs might link to locations by name (e.g., npcData.locationName)
-        // Modify this if NPCs link differently or not at all in your data
         const targetLocationNode = npcData.locationName ? locationNodeMapByName.get(npcData.locationName) : undefined;
 
         if (targetLocationNode) {
-          isLinked = true;
           const targetY = targetLocationNode.position.y;
-          const nextYForTarget = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
+          const nextYForTargetStack = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
           
-          position = { x: SOURCES_X, y: nextYForTarget };
-          targetLinkedYTracker.set(targetLocationNode.id, nextYForTarget + nodeSize.height + linkedNodeSpacingY);
+          const actualY = Math.max(nextYForTargetStack, yTrackers.sources);
+          position = { x: SOURCES_X, y: actualY };
+          
+          targetLinkedYTracker.set(targetLocationNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
+          yTrackers.sources = actualY + nodeSize.height + globalNodeSpacingY;
           
           newEdges.push({
             id: `edge-${nodeId}-${targetLocationNode.id}`,
@@ -303,11 +306,122 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             sourceHandle: 'right',
             targetHandle: 'left',
           });
+          const npcNode: Node = {
+            id: nodeId,
+            type: 'npcNode',
+            position,
+            data: { label: npcData.name || `NPC ${npcData.id}` },
+            style: { width: nodeSize.width, height: nodeSize.height },
+          };
+          newNodes.push(npcNode);
+          allCreatedNodesMap.set(nodeId, npcNode);
         } else {
-          // Unlinked NPC
-          position = { x: UNLINKED_X, y: yTrackers.unlinked };
-          yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
+          unlinkedNpcData.push(npcData); // Defer processing
         }
+      });
+
+      // 3. Process Encounters (prioritizing linked ones)
+      apiData.encounters?.forEach((encData: any) => {
+        const nodeId = `encounter-${encData.id}`;
+        const nodeSize = getNodeSize('encounterNode');
+        let position;
+
+        const targetLocationNode = encData.location ? locationNodeMapByName.get(encData.location) : undefined;
+
+        if (targetLocationNode) {
+          const targetY = targetLocationNode.position.y;
+          const nextYForTargetStack = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
+
+          const actualY = Math.max(nextYForTargetStack, yTrackers.sources);
+          position = { x: SOURCES_X, y: actualY };
+          
+          targetLinkedYTracker.set(targetLocationNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
+          yTrackers.sources = actualY + nodeSize.height + globalNodeSpacingY;
+          
+          newEdges.push({
+            id: `edge-${nodeId}-${targetLocationNode.id}`,
+            source: nodeId,
+            target: targetLocationNode.id,
+            sourceHandle: 'right',
+            targetHandle: 'left',
+          });
+          const encounterNode: Node = {
+            id: nodeId,
+            type: 'encounterNode',
+            position,
+            data: { label: encData.title || `Encounter ${encData.id}` },
+            style: { width: nodeSize.width, height: nodeSize.height },
+          };
+          newNodes.push(encounterNode);
+          allCreatedNodesMap.set(nodeId, encounterNode);
+        } else {
+          unlinkedEncounterData.push(encData); // Defer processing
+        }
+      });
+      
+      // 4. Process Notes (prioritizing linked ones)
+      apiData.notes?.forEach((noteData: any) => {
+        const nodeId = `note-${noteData.id}`;
+        const nodeSize = getNodeSize('noteNode');
+        let position;
+
+        let targetNodeIdFromLink: string | undefined = undefined;
+        if (noteData.linkedEntityType && noteData.linkedEntityId) {
+          const prefix = String(noteData.linkedEntityType).toLowerCase();
+          targetNodeIdFromLink = `${prefix}-${noteData.linkedEntityId}`;
+        }
+        
+        const targetNode = targetNodeIdFromLink ? allCreatedNodesMap.get(targetNodeIdFromLink) : undefined;
+
+        if (targetNode) {
+           let noteXPosition = SOURCES_X; 
+           let columnYTrackerRef = yTrackers.sources;
+
+           if (targetNode.position.x === SOURCES_X) { 
+             noteXPosition = UNLINKED_X; 
+             columnYTrackerRef = yTrackers.unlinked;
+           }
+
+          const targetY = targetNode.position.y;
+          const nextYForTargetStack = targetLinkedYTracker.get(targetNode.id) || targetY;
+          
+          const actualY = Math.max(nextYForTargetStack, columnYTrackerRef);
+          position = { x: noteXPosition, y: actualY };
+          
+          targetLinkedYTracker.set(targetNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
+          if (noteXPosition === SOURCES_X) {
+            yTrackers.sources = actualY + nodeSize.height + globalNodeSpacingY;
+          } else { // UNLINKED_X
+            yTrackers.unlinked = actualY + nodeSize.height + globalNodeSpacingY;
+          }
+          
+          newEdges.push({
+            id: `edge-${nodeId}-${targetNode.id}`,
+            source: nodeId,
+            target: targetNode.id,
+            sourceHandle: 'right',
+            targetHandle: 'left',
+          });
+          const noteNode: Node = {
+            id: nodeId,
+            type: 'noteNode',
+            position,
+            data: { label: noteData.title || `Note ${noteData.id}` },
+            style: { width: nodeSize.width, height: nodeSize.height },
+          };
+          newNodes.push(noteNode);
+          allCreatedNodesMap.set(nodeId, noteNode);
+        } else {
+          unlinkedNoteData.push(noteData); // Defer processing
+        }
+      });
+
+      // Process deferred unlinked NPCs
+      unlinkedNpcData.forEach(npcData => {
+        const nodeId = `npc-${npcData.id}`;
+        const nodeSize = getNodeSize('npcNode');
+        const position = { x: UNLINKED_X, y: yTrackers.unlinked };
+        yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
         
         const npcNode: Node = {
           id: nodeId,
@@ -320,37 +434,12 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         allCreatedNodesMap.set(nodeId, npcNode);
       });
 
-      // 3. Process Encounters
-      apiData.encounters?.forEach((encData: any) => {
+      // Process deferred unlinked Encounters
+      unlinkedEncounterData.forEach(encData => {
         const nodeId = `encounter-${encData.id}`;
         const nodeSize = getNodeSize('encounterNode');
-        let position;
-        let isLinked = false;
-
-        const targetLocationNode = encData.location ? locationNodeMapByName.get(encData.location) : undefined;
-
-        if (targetLocationNode) {
-          isLinked = true;
-          const targetY = targetLocationNode.position.y;
-          // Start stacking linked nodes from the target's Y position
-          const nextYForTarget = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
-          
-          position = { x: SOURCES_X, y: nextYForTarget };
-          // Update the Y tracker for the next node linking to this *same* target
-          targetLinkedYTracker.set(targetLocationNode.id, nextYForTarget + nodeSize.height + linkedNodeSpacingY);
-          
-          newEdges.push({
-            id: `edge-${nodeId}-${targetLocationNode.id}`,
-            source: nodeId,
-            target: targetLocationNode.id,
-            sourceHandle: 'right',
-            targetHandle: 'left',
-          });
-        } else {
-          // Unlinked Encounter
-          position = { x: UNLINKED_X, y: yTrackers.unlinked };
-          yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
-        }
+        const position = { x: UNLINKED_X, y: yTrackers.unlinked };
+        yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
         
         const encounterNode: Node = {
           id: nodeId,
@@ -362,50 +451,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         newNodes.push(encounterNode);
         allCreatedNodesMap.set(nodeId, encounterNode);
       });
-      
-      // 4. Process Notes
-      apiData.notes?.forEach((noteData: any) => {
+
+      // Process deferred unlinked Notes
+      unlinkedNoteData.forEach(noteData => {
         const nodeId = `note-${noteData.id}`;
         const nodeSize = getNodeSize('noteNode');
-        let position;
-        let isLinked = false;
-
-        // Use linkedEntityType and linkedEntityId to find the target node
-        let targetNodeIdFromLink: string | undefined = undefined;
-        if (noteData.linkedEntityType && noteData.linkedEntityId) {
-          const prefix = String(noteData.linkedEntityType).toLowerCase(); // Ensure lowercase prefix
-          // Construct target ID, e.g., "npc-123", "location-456"
-          targetNodeIdFromLink = `${prefix}-${noteData.linkedEntityId}`;
-        }
-        
-        const targetNode = targetNodeIdFromLink ? allCreatedNodesMap.get(targetNodeIdFromLink) : undefined;
-
-        if (targetNode) {
-           // Determine if target is in TARGETS_X or SOURCES_X to place note correctly
-           let noteXPosition = SOURCES_X; // Default for notes linking to main targets
-           if (targetNode.position.x === SOURCES_X) { // If target is already a source, place note further left
-             noteXPosition = UNLINKED_X; // Or a new dedicated column if many such links
-           }
-
-          isLinked = true;
-          const targetY = targetNode.position.y;
-          const nextYForTarget = targetLinkedYTracker.get(targetNode.id) || targetY;
-          
-          position = { x: noteXPosition, y: nextYForTarget };
-          targetLinkedYTracker.set(targetNode.id, nextYForTarget + nodeSize.height + linkedNodeSpacingY);
-          
-          newEdges.push({
-            id: `edge-${nodeId}-${targetNode.id}`,
-            source: nodeId,
-            target: targetNode.id,
-            sourceHandle: 'right',
-            targetHandle: 'left', // Assuming Note.right -> Target.left
-          });
-        } else {
-          // Unlinked Note
-          position = { x: UNLINKED_X, y: yTrackers.unlinked };
-          yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
-        }
+        const position = { x: UNLINKED_X, y: yTrackers.unlinked };
+        yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
         
         const noteNode: Node = {
           id: nodeId,
