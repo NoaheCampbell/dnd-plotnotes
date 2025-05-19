@@ -427,10 +427,24 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       }
       const flowchart = await response.json();
       if (flowchart && flowchart.data && flowchart.data.nodes) {
-        setNodes(flowchart.data.nodes || []);
+        const loadedNodes = flowchart.data.nodes || [];
+        setNodes(loadedNodes);
         setEdges(flowchart.data.edges || []);
         setFlowchartName(flowchart.name || 'Flowchart');
         setCurrentFlowchartId(flowchart.id);
+
+        // Update the global id counter based on loaded nodes
+        let maxId = -1;
+        loadedNodes.forEach((node: Node) => {
+          if (node.id.startsWith('dndnode_')) {
+            const numPart = parseInt(node.id.substring('dndnode_'.length), 10);
+            if (!isNaN(numPart) && numPart > maxId) {
+              maxId = numPart;
+            }
+          }
+        });
+        id = maxId + 1; // Set the global id to be one greater than the max found
+
         // TODO: Restore viewport from flowchart.data.viewport if saved
         if (rfInstance && flowchart.data.viewport) {
             rfInstance.setViewport(flowchart.data.viewport);
