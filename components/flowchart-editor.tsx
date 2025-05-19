@@ -286,8 +286,27 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         const nodeId = `npc-${npcData.id}`;
         const nodeSize = getNodeSize('npcNode');
         let position;
+        let targetLocationNode: Node | undefined = undefined;
+        // The API provides npcData.locationName (from npc.location_name in DB)
+        // This field might contain an ID (as a string/number) or a name string.
+        console.log(`Flowchart Sync: Processing NPC - ID: ${npcData.id}, Name: ${npcData.name}, API's locationName: ${npcData.locationName}`);
 
-        const targetLocationNode = npcData.locationName ? locationNodeMapByName.get(npcData.locationName) : undefined;
+        if (npcData.locationName !== null && npcData.locationName !== undefined) {
+          const locNameStr = String(npcData.locationName);
+          // Attempt 1: Treat locationName as an ID string
+          targetLocationNode = allCreatedNodesMap.get(`location-${locNameStr}`);
+          console.log(`  NPC ${npcData.id} Attempt 1 (locationName as ID '${locNameStr}'): Found node -`, targetLocationNode ? targetLocationNode.id : 'Not Found');
+
+          // Attempt 2: Treat locationName as a Name string if ID lookup failed
+          if (!targetLocationNode) {
+            const npcLocationNameClean = locNameStr.trim().toLowerCase();
+            const entry = Array.from(locationNodeMapByName.entries()).find(([nameInMap]) => nameInMap.trim().toLowerCase() === npcLocationNameClean);
+            if (entry) {
+              targetLocationNode = entry[1];
+            }
+            console.log(`  NPC ${npcData.id} Attempt 2 (locationName as Name '${locNameStr}' -> Cleaned '${npcLocationNameClean}'): Found node -`, targetLocationNode ? targetLocationNode.id : 'Not Found');
+          }
+        }
 
         if (targetLocationNode) {
           const targetY = targetLocationNode.position.y;
@@ -325,8 +344,22 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         const nodeId = `encounter-${encData.id}`;
         const nodeSize = getNodeSize('encounterNode');
         let position;
+        let targetLocationNode: Node | undefined = undefined;
+        // The API provides encData.location (from encounter.location in DB), which is likely a name string.
+        // encData.campaign_id is the ID of the campaign, not the location.
+        console.log(`Flowchart Sync: Processing Encounter - ID: ${encData.id}, Title: ${encData.title}, API's location field: ${encData.location}`);
 
-        const targetLocationNode = encData.location ? locationNodeMapByName.get(encData.location) : undefined;
+        // Attempt to link by encData.location (assumed to be a name string)
+        if (encData.location && typeof encData.location === 'string') { 
+          const encounterLocationNameClean = encData.location.trim().toLowerCase();
+          const entry = Array.from(locationNodeMapByName.entries()).find(([nameInMap]) => nameInMap.trim().toLowerCase() === encounterLocationNameClean);
+          if (entry) {
+            targetLocationNode = entry[1];
+          }
+          console.log(`  Encounter ${encData.id} Attempt (Name '${encData.location}' -> Cleaned '${encounterLocationNameClean}'): Found node -`, targetLocationNode ? targetLocationNode.id : 'Not Found');
+        } else {
+          console.log(`  Encounter ${encData.id} has no location string to lookup.`);
+        }
 
         if (targetLocationNode) {
           const targetY = targetLocationNode.position.y;
