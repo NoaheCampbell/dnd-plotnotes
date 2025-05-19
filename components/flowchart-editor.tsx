@@ -421,7 +421,11 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       setEdges(newEdges);
       
       if (rfInstance) {
-        setTimeout(() => rfInstance.fitView(), 0);
+        setTimeout(() => {
+          if (rfInstance) { // Re-check rfInstance just in case
+            rfInstance.fitView({ padding: 0.2, duration: 200 }); // Added padding and a short animation duration
+          }
+        }, 100); // Increased delay to 100ms
       }
       setFlowchartName(`Synced: ${new Date().toLocaleString()}`);
       toast.success("Flowchart synced with campaign data using new layout!");
@@ -608,14 +612,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     }
   }, [rfInstance, setSelectedNode, setLastPaneClickFlowPosition]);
 
-  useEffect(() => {
-    if (flowchartId) {
-      loadFlowchart(flowchartId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [flowchartId]); // Added eslint-disable-next-line to handle potential missing dependencies if loadFlowchart is not memoized with useCallback
-
-  const loadFlowchart = async (idToLoad: string) => {
+  const loadFlowchart = useCallback(async (idToLoad: string) => {
     try {
       const response = await fetch(`/api/flowcharts/${idToLoad}`);
       if (!response.ok) {
@@ -642,9 +639,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         });
         id = maxId + 1; // Set the global id to be one greater than the max found
 
-        // TODO: Restore viewport from flowchart.data.viewport if saved
-        if (rfInstance && flowchart.data.viewport) {
-            rfInstance.setViewport(flowchart.data.viewport);
+        // Always fit view after loading, do not restore saved viewport for now
+        if (rfInstance) {
+          setTimeout(() => {
+            if (rfInstance) { // Re-check rfInstance as it's in a timeout
+              rfInstance.fitView({ padding: 0.2, duration: 200 });
+            }
+          }, 100); // 100ms delay
         }
       } else {
         console.error('Loaded flowchart data is not in the expected format:', flowchart);
@@ -658,7 +659,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       setEdges([]);
       setFlowchartName(initialName || 'New Flowchart (load error)');
     }
-  };
+  }, [rfInstance, setNodes, setEdges, setFlowchartName, setCurrentFlowchartId, initialName, initialNodes]);
+
+  useEffect(() => {
+    if (flowchartId) {
+      loadFlowchart(flowchartId);
+    }
+  }, [flowchartId, loadFlowchart]);
 
   const saveFlowchart = async () => {
     if (!campaignId && !currentFlowchartId) {
