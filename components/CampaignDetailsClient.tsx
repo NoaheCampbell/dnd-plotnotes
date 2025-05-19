@@ -104,7 +104,6 @@ export default function CampaignDetailsClient({
       const plainDataEntity: { [key: string]: any } = {};
 
       if (currentSectionConfig && currentSectionConfig.fields) {
-        // Explicitly copy 'id' and 'campaign_id' if they exist and are not undefined
         if (entityToEdit.id !== undefined) {
           plainDataEntity.id = entityToEdit.id;
         }
@@ -113,22 +112,46 @@ export default function CampaignDetailsClient({
         }
 
         currentSectionConfig.fields.forEach((field: { name: string }) => {
-          // For other configured fields, copy them if they are direct properties of entityToEdit
-          // and not already set (like id/campaign_id if they are also in fields list)
           if (entityToEdit.hasOwnProperty(field.name)) {
-            // Avoid overwriting id/campaign_id if they were specifically handled and also in fields
             if (!(field.name === 'id' && plainDataEntity.id !== undefined) && 
                 !(field.name === 'campaign_id' && plainDataEntity.campaign_id !== undefined)) {
               plainDataEntity[field.name] = entityToEdit[field.name];
             }
           } else {
-             // This log helps identify mismatches: configured field not on the actual entity.
-             // Only log if the property isn't 'id' or 'campaign_id' which we handle separately and might not be in every entity's direct props if not set.
              if (field.name !== 'id' && field.name !== 'campaign_id') {
-                console.warn(`CampaignDetailsClient: Configured field '${field.name}' not found as own property on entityToEdit.`);
+                console.warn(`CampaignDetailsClient: Configured field '${field.name}' not found as own property on entityToEdit for section ${section}. Entity:`, entityToEdit);
              }
           }
         });
+
+        // Special handling for encounters to map fields correctly
+        if (section === 'encounters') {
+          // Assuming entityToEdit.location from DB stores the location ID for the encounter
+          if (entityToEdit.location !== undefined) {
+            plainDataEntity.campaign_location_id = entityToEdit.location;
+            // If 'location' was also a configured field and copied above, this will override it, which is fine.
+            // If 'campaign_location_id' was somehow already on entityToEdit, this ensures it uses entityToEdit.location.
+          } else if (plainDataEntity.campaign_location_id === undefined) {
+            // If entityToEdit.location is undefined and campaign_location_id wasn't found by direct property copy
+            console.warn("Encounter entityToEdit is missing 'location' field for 'campaign_location_id'");
+            plainDataEntity.campaign_location_id = ''; // Default to empty if not found
+          }
+
+          // Assuming entityToEdit.npcs is an array of related NPC objects (e.g., from a Prisma include)
+          // Or, it might be entityToEdit.npc_ids if the API already transformed it.
+          // For now, let's check common patterns for relational data.
+          if (Array.isArray(entityToEdit.npcs)) { // If 'npcs' is an array of NPC objects
+            plainDataEntity.npc_ids = entityToEdit.npcs.map((npc: any) => String(npc.id));
+          } else if (Array.isArray(entityToEdit.npc_ids)) { // If 'npc_ids' is already an array of IDs
+             plainDataEntity.npc_ids = entityToEdit.npc_ids.map(String);
+          } else if (plainDataEntity.npc_ids === undefined) {
+            // If entityToEdit.npcs is not an array and npc_ids wasn't found by direct property copy
+            console.warn("Encounter entityToEdit does not have an 'npcs' array or 'npc_ids' array for NPC selection.");
+            plainDataEntity.npc_ids = []; // Default to empty array
+          }
+          console.log("Prepared encounter entity for edit:", plainDataEntity);
+        }
+
       } else {
         console.error(`Config not found for section ${section}. Falling back to shallow clone for entity:`, entityToEdit);
         Object.assign(plainDataEntity, { ...entityToEdit }); 
@@ -333,9 +356,9 @@ export default function CampaignDetailsClient({
                       onCreated={newEntity => handleEntityUpdateSuccess(section.key, newEntity, !(currentEditEntity && currentEditEntity.id))}
                       campaigns={campaigns}
                       entity={currentEditEntity || undefined}
-                      allNpcs={section.key === 'notes' ? sectionData.npcs : undefined}
-                      allItems={section.key === 'notes' ? sectionData.items : undefined}
-                      allEncounters={section.key === 'notes' ? sectionData.encounters : undefined}
+                      allNpcs={(section.key === 'encounters' || section.key === 'notes') ? sectionData.npcs : undefined}
+                      allItems={(section.key === 'encounters' || section.key === 'notes') ? sectionData.items : undefined}
+                      allEncounters={(section.key === 'notes') ? sectionData.encounters : undefined}
                     />
                     {deleteEntity[section.key] && (
                       <Dialog open={!!deleteEntity[section.key]} onOpenChange={() => setDeleteEntity(prev => ({...prev, [section.key]: null}))}>

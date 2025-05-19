@@ -119,6 +119,11 @@ export default function GenericEntityForm({
 
   }, [selectedEntityType, campaigns, availableLocations, allNpcs, allItems, allEncounters, config.label]);
 
+  // Log props/state just before the NPC filtering effect for Encounters
+  if (config.label === 'Encounters') {
+    console.log('[GenericEntityForm Encounter Render Check] selectedEncounterLocationId:', selectedEncounterLocationId, 'allNpcs available:', !!allNpcs, 'allNpcs length:', allNpcs?.length);
+  }
+
   // Effect to filter NPCs for Encounters when selected location changes or allNpcs are loaded
   useEffect(() => {
     if (config.label === 'Encounters' && selectedEncounterLocationId && allNpcs) {
@@ -395,23 +400,37 @@ export default function GenericEntityForm({
                                     <Badge
                                       key={npc.id}
                                       variant="secondary"
-                                      className="bg-amber-200 text-amber-900 dark:bg-amber-700 dark:text-amber-100"
+                                      className="bg-amber-200 text-amber-900 dark:bg-amber-700 dark:text-amber-100 flex items-center"
                                     >
                                       {npc.name}
-                                      <button 
-                                        type="button" 
-                                        className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                      <span 
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`Remove ${npc.name}`}
+                                        className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer"
                                         onClick={(e) => { 
-                                          e.stopPropagation(); // Prevent popover from closing
+                                          e.stopPropagation(); // Prevent popover from closing and parent button click
+                                          e.preventDefault(); // Prevent any default span behavior if any
                                           setSelectedNpcIdsForForm(prev => {
                                             const next = new Set(prev);
                                             next.delete(String(npc.id));
                                             return next;
                                           });
                                         }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === ' ') {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            setSelectedNpcIdsForForm(prev => {
+                                              const next = new Set(prev);
+                                              next.delete(String(npc.id));
+                                              return next;
+                                            });
+                                          }
+                                        }}
                                       >
                                         <XIcon className="h-3 w-3" />
-                                      </button>
+                                      </span>
                                     </Badge>
                                   ) : null;
                                 })}
