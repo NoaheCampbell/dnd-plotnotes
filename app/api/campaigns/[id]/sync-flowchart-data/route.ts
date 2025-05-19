@@ -35,7 +35,14 @@ export async function GET(
       locationName: npc.location_name, // Map from snake_case to camelCase
     }));
 
-    return NextResponse.json({ npcs: transformedNpcs, locations, notes, encounters });
+    // Transform notes to include camelCase linked entity fields
+    const transformedNotes = campaignData.notes.map(note => ({
+      ...note,
+      linkedEntityType: note.linked_entity_type,
+      linkedEntityId: note.linked_entity_id,
+    }));
+
+    return NextResponse.json({ npcs: transformedNpcs, locations, notes: transformedNotes, encounters });
   } catch (error) {
     console.error('Failed to fetch campaign data for flowchart:', error);
     return NextResponse.json({ error: 'Failed to fetch campaign data for flowchart' }, { status: 500 });

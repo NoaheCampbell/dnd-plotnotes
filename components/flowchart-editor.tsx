@@ -370,12 +370,15 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         let position;
         let isLinked = false;
 
-        // Example: Notes link to locations by name (e.g., noteData.locationName)
-        // Modify if Notes link to other types or via IDs
-        const targetNodeId = noteData.linkedLocationName ? locationNodeMapByName.get(noteData.linkedLocationName)?.id : undefined;
-        // Or if linking to any node type by ID: const targetNodeId = noteData.linkedEntityId ? allCreatedNodesMap.get(noteData.linkedEntityId)?.id : undefined;
+        // Use linkedEntityType and linkedEntityId to find the target node
+        let targetNodeIdFromLink: string | undefined = undefined;
+        if (noteData.linkedEntityType && noteData.linkedEntityId) {
+          const prefix = String(noteData.linkedEntityType).toLowerCase(); // Ensure lowercase prefix
+          // Construct target ID, e.g., "npc-123", "location-456"
+          targetNodeIdFromLink = `${prefix}-${noteData.linkedEntityId}`;
+        }
         
-        const targetNode = targetNodeId ? allCreatedNodesMap.get(targetNodeId) : undefined;
+        const targetNode = targetNodeIdFromLink ? allCreatedNodesMap.get(targetNodeIdFromLink) : undefined;
 
         if (targetNode) {
            // Determine if target is in TARGETS_X or SOURCES_X to place note correctly
