@@ -16,8 +16,10 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import EventNode from './custom-nodes/EventNode'; // Import the custom node
 import NPCNode from './custom-nodes/NPCNode'; // Import NPCNode
+import LocationNode from './custom-nodes/LocationNode'; // Import LocationNode
+import NoteNode from './custom-nodes/NoteNode'; // Import NoteNode
+import EncounterNode from './custom-nodes/EncounterNode'; // Import EncounterNode
 import { NodeResizer } from '@reactflow/node-resizer';
 import '@reactflow/node-resizer/dist/style.css';
 import { toast } from 'sonner'; // Import sonner toast
@@ -47,8 +49,10 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
   // Define node types
   const nodeTypes = useMemo(() => ({
-    eventNode: EventNode,
     npcNode: NPCNode, // Register NPCNode
+    locationNode: LocationNode, // Register LocationNode
+    noteNode: NoteNode, // Register NoteNode
+    encounterNode: EncounterNode, // Register EncounterNode
     // We can add more custom node types here later
     // default: DefaultNode, // if you want to customize the default one too
   }), []);
@@ -57,21 +61,6 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
-
-  const addEventNode = useCallback(() => {
-    const newNodeId = getNewNodeId();
-    const newNode: Node = {
-      id: newNodeId,
-      type: 'eventNode',
-      position: {
-        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
-        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
-      },
-      data: { label: `Event ${id-1}` },
-      style: { width: 150, height: 70 }, // Default initial size for EventNode
-    };
-    setNodes((nds) => nds.concat(newNode));
-  }, [setNodes, rfInstance]);
 
   const addNpcNode = useCallback(() => {
     const newNodeId = getNewNodeId();
@@ -84,6 +73,51 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       },
       data: { label: `NPC ${id-1}` },
       style: { width: 80, height: 80 }, // Default initial size for NPCNode (square for circle)
+    };
+    setNodes((nds) => nds.concat(newNode));
+  }, [setNodes, rfInstance]);
+
+  const addLocationNode = useCallback(() => {
+    const newNodeId = getNewNodeId();
+    const newNode: Node = {
+      id: newNodeId,
+      type: 'locationNode',
+      position: {
+        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
+        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
+      },
+      data: { label: `Location ${id-1}` },
+      style: { width: 120, height: 120 }, // Default size for LocationNode (diamond)
+    };
+    setNodes((nds) => nds.concat(newNode));
+  }, [setNodes, rfInstance]);
+
+  const addNoteNode = useCallback(() => {
+    const newNodeId = getNewNodeId();
+    const newNode: Node = {
+      id: newNodeId,
+      type: 'noteNode',
+      position: {
+        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
+        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
+      },
+      data: { label: `Note ${id-1}` },
+      style: { width: 150, height: 100 }, // Default initial size for NoteNode
+    };
+    setNodes((nds) => nds.concat(newNode));
+  }, [setNodes, rfInstance]);
+
+  const addEncounterNode = useCallback(() => {
+    const newNodeId = getNewNodeId();
+    const newNode: Node = {
+      id: newNodeId,
+      type: 'encounterNode',
+      position: {
+        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
+        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
+      },
+      data: { label: `Encounter ${id-1}` },
+      style: { width: 130, height: 120 }, // Default initial size for EncounterNode (hexagon)
     };
     setNodes((nds) => nds.concat(newNode));
   }, [setNodes, rfInstance]);
@@ -225,9 +259,11 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           placeholder="Flowchart Name"
           className="max-w-xs text-base h-9 bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
         />
-        <Button onClick={addEventNode} variant="outline" size="sm" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-700">Add Event Node</Button>
-        <Button onClick={addNpcNode} variant="outline" size="sm" className="text-sky-800 border-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:border-sky-500 dark:hover:bg-stone-700">Add NPC Node</Button>
-        <Button onClick={saveFlowchart} variant="default" size="sm" className="bg-amber-800 text-amber-100 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600">Save Flowchart</Button>
+        <Button onClick={addNpcNode} variant="outline" size="sm" className="text-sky-800 border-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:border-sky-500 dark:hover:bg-stone-700">Add NPC</Button>
+        <Button onClick={addLocationNode} variant="outline" size="sm" className="text-green-800 border-green-700 hover:bg-green-100 dark:text-green-300 dark:border-green-500 dark:hover:bg-stone-700">Add Location</Button>
+        <Button onClick={addNoteNode} variant="outline" size="sm" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-700">Add Note</Button>
+        <Button onClick={addEncounterNode} variant="outline" size="sm" className="text-red-800 border-red-700 hover:bg-red-100 dark:text-red-300 dark:border-red-500 dark:hover:bg-stone-700">Add Encounter</Button>
+        <Button onClick={saveFlowchart} variant="default" size="sm" className="bg-amber-800 text-amber-100 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600 ml-auto">Save Flowchart</Button>
         
         {selectedNode && (
           <div className="flex items-center gap-2 ml-auto border-l border-amber-800/20 dark:border-stone-700 pl-2">
