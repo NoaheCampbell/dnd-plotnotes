@@ -46,6 +46,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const [currentFlowchartId, setCurrentFlowchartId] = useState<string | undefined>(flowchartId);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentNodeLabel, setCurrentNodeLabel] = useState<string>("");
+  const [lastPaneClickFlowPosition, setLastPaneClickFlowPosition] = useState<{x: number, y: number} | null>(null);
 
   // Define node types
   const nodeTypes = useMemo(() => ({
@@ -316,63 +317,130 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
   const addNpcNode = useCallback(() => {
     const newNodeId = getNewNodeId();
+    let newNodePosition: { x: number, y: number };
+
+    if (lastPaneClickFlowPosition) {
+      newNodePosition = { ...lastPaneClickFlowPosition }; 
+      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
+      setLastPaneClickFlowPosition(null); // Clear after use
+    } else if (rfInstance) {
+      // Fallback: Place 100px/100px (screen pixels) from viewport top-left
+      const screenFallbackOffset = { x: 100, y: 100 }; 
+      newNodePosition = rfInstance.project(screenFallbackOffset);
+      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
+    } else {
+      // Absolute fallback if rfInstance is not available
+      newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
+      console.log('Using absolute fallback position:', newNodePosition);
+    }
+
+    // Add a small random offset to prevent perfect stacking
+    newNodePosition.x += (Math.random() - 0.5) * 10; 
+    newNodePosition.y += (Math.random() - 0.5) * 10;
+    console.log('Final position for new NPC node:', newNodePosition);
+
     const newNode: Node = {
       id: newNodeId,
       type: 'npcNode',
-      position: {
-        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
-        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
-      },
+      position: newNodePosition,
       data: { label: `NPC ${id-1}` },
       style: { width: 80, height: 80 }, // Default initial size for NPCNode (square for circle)
     };
     setNodes((nds) => nds.concat(newNode));
-  }, [setNodes, rfInstance]);
+  }, [setNodes, rfInstance, lastPaneClickFlowPosition, setLastPaneClickFlowPosition]);
 
   const addLocationNode = useCallback(() => {
     const newNodeId = getNewNodeId();
+    let newNodePosition: { x: number, y: number };
+
+    if (lastPaneClickFlowPosition) {
+      newNodePosition = { ...lastPaneClickFlowPosition }; 
+      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
+      setLastPaneClickFlowPosition(null); 
+    } else if (rfInstance) {
+      const screenFallbackOffset = { x: 100, y: 100 }; 
+      newNodePosition = rfInstance.project(screenFallbackOffset);
+      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
+    } else {
+      newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
+      console.log('Using absolute fallback position:', newNodePosition);
+    }
+
+    newNodePosition.x += (Math.random() - 0.5) * 10; 
+    newNodePosition.y += (Math.random() - 0.5) * 10;
+    console.log('Final position for new Location node:', newNodePosition);
+
     const newNode: Node = {
       id: newNodeId,
       type: 'locationNode',
-      position: {
-        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
-        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
-      },
+      position: newNodePosition,
       data: { label: `Location ${id-1}` },
-      style: { width: 120, height: 120 }, // Default size for LocationNode (diamond)
+      style: { width: 120, height: 120 }, 
     };
     setNodes((nds) => nds.concat(newNode));
-  }, [setNodes, rfInstance]);
+  }, [setNodes, rfInstance, lastPaneClickFlowPosition, setLastPaneClickFlowPosition]);
 
   const addNoteNode = useCallback(() => {
     const newNodeId = getNewNodeId();
+    let newNodePosition: { x: number, y: number };
+
+    if (lastPaneClickFlowPosition) {
+      newNodePosition = { ...lastPaneClickFlowPosition }; 
+      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
+      setLastPaneClickFlowPosition(null); 
+    } else if (rfInstance) {
+      const screenFallbackOffset = { x: 100, y: 100 }; 
+      newNodePosition = rfInstance.project(screenFallbackOffset);
+      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
+    } else {
+      newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
+      console.log('Using absolute fallback position:', newNodePosition);
+    }
+
+    newNodePosition.x += (Math.random() - 0.5) * 10; 
+    newNodePosition.y += (Math.random() - 0.5) * 10;
+    console.log('Final position for new Note node:', newNodePosition);
+
     const newNode: Node = {
       id: newNodeId,
       type: 'noteNode',
-      position: {
-        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
-        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
-      },
+      position: newNodePosition,
       data: { label: `Note ${id-1}` },
-      style: { width: 150, height: 100 }, // Default initial size for NoteNode
+      style: { width: 150, height: 100 }, 
     };
     setNodes((nds) => nds.concat(newNode));
-  }, [setNodes, rfInstance]);
+  }, [setNodes, rfInstance, lastPaneClickFlowPosition, setLastPaneClickFlowPosition]);
 
   const addEncounterNode = useCallback(() => {
     const newNodeId = getNewNodeId();
+    let newNodePosition: { x: number, y: number };
+
+    if (lastPaneClickFlowPosition) {
+      newNodePosition = { ...lastPaneClickFlowPosition }; 
+      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
+      setLastPaneClickFlowPosition(null); 
+    } else if (rfInstance) {
+      const screenFallbackOffset = { x: 100, y: 100 }; 
+      newNodePosition = rfInstance.project(screenFallbackOffset);
+      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
+    } else {
+      newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
+      console.log('Using absolute fallback position:', newNodePosition);
+    }
+
+    newNodePosition.x += (Math.random() - 0.5) * 10; 
+    newNodePosition.y += (Math.random() - 0.5) * 10;
+    console.log('Final position for new Encounter node:', newNodePosition);
+
     const newNode: Node = {
       id: newNodeId,
       type: 'encounterNode',
-      position: {
-        x: Math.random() * (rfInstance?.getViewport().width || 400) - 100,
-        y: Math.random() * (rfInstance?.getViewport().height || 400) - 50,
-      },
+      position: newNodePosition,
       data: { label: `Encounter ${id-1}` },
-      style: { width: 130, height: 120 }, // Default initial size for EncounterNode (hexagon)
+      style: { width: 130, height: 120 }, 
     };
     setNodes((nds) => nds.concat(newNode));
-  }, [setNodes, rfInstance]);
+  }, [setNodes, rfInstance, lastPaneClickFlowPosition, setLastPaneClickFlowPosition]);
 
   useEffect(() => {
     if (selectedNode) {
@@ -403,13 +471,25 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     setSelectedNode(node);
   }, []);
 
-  const onPaneClick = useCallback(() => {
+  const onPaneClick = useCallback((event: React.MouseEvent) => {
     setSelectedNode(null);
-    // Optionally apply label change on pane click if there was a pending edit
-    // if (selectedNode && currentNodeLabel !== selectedNode.data.label) {
-    //   applyNodeLabelUpdate(); 
-    // }
-  }, [selectedNode, currentNodeLabel]); // Removed selectedNode & currentNodeLabel from deps for this simplified version
+    if (rfInstance && event.target === event.currentTarget) { // Ensure the click is on the pane itself
+      const pane = event.currentTarget.getBoundingClientRect();
+      const projectedPosition = rfInstance.project({
+        x: event.clientX - pane.left,
+        y: event.clientY - pane.top,
+      });
+      setLastPaneClickFlowPosition(projectedPosition);
+      console.log('Pane clicked. Projected position:', projectedPosition);
+    } else {
+      // Click was on a node or control, not the pane directly, or rfInstance not ready
+      // Optionally clear the last click position or leave it as is depending on desired UX
+      // For now, let's clear it if the click wasn't on the pane to avoid unintended placement
+      if (event.target !== event.currentTarget) {
+         setLastPaneClickFlowPosition(null);
+      }
+    }
+  }, [rfInstance, setSelectedNode, setLastPaneClickFlowPosition]);
 
   useEffect(() => {
     if (flowchartId) {
