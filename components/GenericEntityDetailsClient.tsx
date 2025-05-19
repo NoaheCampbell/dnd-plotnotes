@@ -107,7 +107,7 @@ export default function GenericEntityDetailsClient({
           onCreated={() => window.location.reload()}
           campaigns={campaigns}
           entity={entity}
-          availableLocations={config.label === 'Encounters' ? campaignLocations : undefined}
+          availableLocations={config.label === 'NPCs' ? campaignLocations : undefined}
         />
         {/* Delete Modal */}
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

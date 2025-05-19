@@ -22,5 +22,16 @@ export default async function NpcDetailsPage({ params }: NpcPageProps) {
     orderBy: { title: 'asc' }
   });
 
-  return <GenericEntityDetailsClient entity={npc} config={entitiesConfig.npcs} apiPath="/npcs" campaigns={allCampaigns} />
+  const allLocations = await prisma.locations.findMany({
+    select: { id: true, name: true, campaign_id: true },
+    orderBy: { name: 'asc' }
+  });
+
+  return <GenericEntityDetailsClient 
+    entity={npc} 
+    config={entitiesConfig.npcs} 
+    apiPath="/npcs" 
+    campaigns={allCampaigns} 
+    campaignLocations={allLocations}
+  />
 } 

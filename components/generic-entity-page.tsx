@@ -11,6 +11,7 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
   const [editEntity, setEditEntity] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(config.api)
@@ -33,6 +34,10 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
         .then(async (res) => res.ok ? res.json() : [])
         .then(setCampaigns)
         .catch(() => setCampaigns([]));
+      fetch("/api/locations")
+        .then(async (res) => res.ok ? res.json() : [])
+        .then(setLocations)
+        .catch(() => setLocations([]));
     }
   }, [config.api, entity]);
 
@@ -84,6 +89,7 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
           onCreated={handleCreated}
           campaigns={campaigns}
           entity={editEntity || undefined}
+          availableLocations={locations}
         />
       </div>
     </div>
