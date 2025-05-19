@@ -7,12 +7,21 @@ import { Pencil, Trash2 } from "lucide-react";
 import GenericEntityForm from "@/components/generic-entity-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 
-export default function GenericEntityDetailsClient({ entity, config, apiPath, campaigns = [] }: {
+interface GenericEntityDetailsClientProps {
   entity: any;
   config: any;
   apiPath: string;
   campaigns?: any[];
-}) {
+  campaignLocations?: Array<{ id: any; name: string; [key: string]: any; }>;
+}
+
+export default function GenericEntityDetailsClient({
+  entity,
+  config,
+  apiPath,
+  campaigns = [],
+  campaignLocations
+}: GenericEntityDetailsClientProps) {
   const fullConfig = getFullEntityConfig(config, apiPath, campaigns);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -99,6 +108,7 @@ export default function GenericEntityDetailsClient({ entity, config, apiPath, ca
           onCreated={() => window.location.reload()}
           campaigns={campaigns}
           entity={entity}
+          availableLocations={config.label === 'Encounters' ? campaignLocations : undefined}
         />
         {/* Delete Modal */}
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

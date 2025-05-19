@@ -246,6 +246,7 @@ export default function CampaignDetailsClient({
                         // setOpen needs to be handled carefully if it's a string or boolean
                       }}
                       config={getFullEntityConfig(section.config, `/${section.key}`, campaigns)}
+                      availableLocations={section.key === 'encounters' ? sectionData.locations : undefined}
                       onCreated={newEntity => {
                         setSectionData(prev => ({
                           ...prev,

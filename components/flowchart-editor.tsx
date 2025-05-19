@@ -62,6 +62,169 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     [setEdges]
   );
 
+  const isValidConnection = useCallback((connection: Connection) => {
+    const sourceNode = nodes.find((node) => node.id === connection.source);
+    const targetNode = nodes.find((node) => node.id === connection.target);
+
+    if (!sourceNode || !targetNode) {
+      console.warn("isValidConnection: source or target node not found");
+      return false;
+    }
+
+    const sourceType = sourceNode.type;
+    const targetType = targetNode.type;
+
+    // Rule 1: Location to Location
+    if (sourceType === 'locationNode' && targetType === 'locationNode') {
+      return true;
+    }
+
+    // Rule 2: NPC to Location
+    if (sourceType === 'npcNode' && targetType === 'locationNode') {
+      return true;
+    }
+
+    // Rule 3: Note to Location
+    if (sourceType === 'noteNode' && targetType === 'locationNode') {
+      return true;
+    }
+
+    // Rule 4: Encounter to Location
+    if (sourceType === 'encounterNode' && targetType === 'locationNode') {
+      return true;
+    }
+    
+    // If you want to prevent connections from a specific handle type to another
+    // you can also check connection.sourceHandle and connection.targetHandle here.
+    // For example:
+    // if (connection.sourceHandle === 'a' && connection.targetHandle === 'b') return true;
+
+    // Default: Disallow other connections
+    toast.error(`Invalid connection: ${sourceType} cannot connect to ${targetType}`);
+    return false;
+  }, [nodes]); // Add nodes as a dependency
+
+  const syncFlowchartWithCampaignData = useCallback(async () => {
+    if (!campaignId) {
+      toast.error("No campaign selected to sync from.");
+      return;
+    }
+
+    toast.info("Syncing flowchart with campaign data...");
+
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/sync-flowchart-data`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch campaign data: ${response.statusText}`);
+      }
+      const data = await response.json();
+
+      const newNodes: Node[] = [];
+      const newEdges: Edge[] = [];
+
+      let yOffset = 50;
+      const xPositions = {
+        locations: 100,
+        npcs: 350,
+        encounters: 600,
+        notes: 850,
+      };
+      const columnCounts = { locations: 0, npcs: 0, encounters: 0, notes: 0 };
+      const nodeSpacingY = 150; // Vertical spacing between nodes in a column
+      const nodeDefaultSizes = {
+        locationNode: { width: 120, height: 120 },
+        npcNode: { width: 80, height: 80 },
+        encounterNode: { width: 130, height: 120 },
+        noteNode: { width: 150, height: 100 },
+      };
+
+      // Process Locations
+      data.locations?.forEach((loc: any) => {
+        newNodes.push({
+          id: `location-${loc.id}`,
+          type: 'locationNode',
+          position: { x: xPositions.locations, y: yOffset + columnCounts.locations * nodeSpacingY },
+          data: { label: loc.name || `Location ${loc.id}` },
+          style: nodeDefaultSizes.locationNode,
+        });
+        columnCounts.locations++;
+      });
+
+      // Process NPCs
+      data.npcs?.forEach((npc: any) => {
+        newNodes.push({
+          id: `npc-${npc.id}`,
+          type: 'npcNode',
+          position: { x: xPositions.npcs, y: yOffset + columnCounts.npcs * nodeSpacingY },
+          data: { label: npc.name || `NPC ${npc.id}` },
+          style: nodeDefaultSizes.npcNode,
+        });
+        columnCounts.npcs++;
+      });
+
+      // Process Encounters
+      data.encounters?.forEach((enc: any) => {
+        newNodes.push({
+          id: `encounter-${enc.id}`,
+          type: 'encounterNode',
+          position: { x: xPositions.encounters, y: yOffset + columnCounts.encounters * nodeSpacingY },
+          data: { label: enc.title || `Encounter ${enc.id}` },
+          style: nodeDefaultSizes.encounterNode,
+        });
+        columnCounts.encounters++;
+
+        // Attempt to connect encounter to location if location name matches
+        if (enc.location && data.locations) {
+          console.log(`Encounter '${enc.title}' (ID: ${enc.id}) has location string: '${enc.location}'`);
+          console.log('Available location names:', data.locations.map((l: any) => l.name));
+          const targetLocation = data.locations.find((loc: any) => loc.name === enc.location);
+          if (targetLocation) {
+            console.log(`Found matching location for '${enc.location}': ID ${targetLocation.id}, Name: ${targetLocation.name}`);
+            newEdges.push({
+              id: `edge-enc${enc.id}-loc${targetLocation.id}`,
+              source: `encounter-${enc.id}`,
+              target: `location-${targetLocation.id}`,
+            });
+            console.log('Pushed new edge:', newEdges[newEdges.length -1]);
+          } else {
+            console.log(`No matching location found for '${enc.location}'.`);
+          }
+        } else {
+          if (!enc.location) console.log(`Encounter '${enc.title}' (ID: ${enc.id}) has no location string.`);
+          if (!data.locations) console.log('No locations data available to match against.');
+        }
+      });
+      
+      // Process Notes
+      data.notes?.forEach((note: any) => {
+        newNodes.push({
+          id: `note-${note.id}`,
+          type: 'noteNode',
+          position: { x: xPositions.notes, y: yOffset + columnCounts.notes * nodeSpacingY },
+          data: { label: note.title || `Note ${note.id}` },
+          style: nodeDefaultSizes.noteNode,
+        });
+        columnCounts.notes++;
+      });
+
+      setNodes(newNodes);
+      setEdges(newEdges);
+      // Consider resetting viewport or fitting view
+      if (rfInstance) {
+        // Make sure rfInstance.fitView is called after nodes are updated
+        // Using a short timeout can help ensure the DOM has updated.
+        setTimeout(() => rfInstance.fitView(), 0);
+      }
+      setFlowchartName(`Synced: ${new Date().toLocaleString()}`); // Update flowchart name
+      toast.success("Flowchart synced with campaign data!");
+
+    } catch (error: any) {
+      console.error("Error syncing flowchart:", error);
+      toast.error(error.message || "Failed to sync flowchart.");
+    }
+  }, [campaignId, setNodes, setEdges, rfInstance, setFlowchartName]); // Added setFlowchartName
+
   const addNpcNode = useCallback(() => {
     const newNodeId = getNewNodeId();
     const newNode: Node = {
@@ -263,6 +426,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         <Button onClick={addLocationNode} variant="outline" size="sm" className="text-green-800 border-green-700 hover:bg-green-100 dark:text-green-300 dark:border-green-500 dark:hover:bg-stone-700">Add Location</Button>
         <Button onClick={addNoteNode} variant="outline" size="sm" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-700">Add Note</Button>
         <Button onClick={addEncounterNode} variant="outline" size="sm" className="text-red-800 border-red-700 hover:bg-red-100 dark:text-red-300 dark:border-red-500 dark:hover:bg-stone-700">Add Encounter</Button>
+        <Button onClick={syncFlowchartWithCampaignData} variant="outline" size="sm" className="text-purple-800 border-purple-700 hover:bg-purple-100 dark:text-purple-300 dark:border-purple-500 dark:hover:bg-stone-700">Sync with Campaign</Button>
         <Button onClick={saveFlowchart} variant="default" size="sm" className="bg-amber-800 text-amber-100 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600 ml-auto">Save Flowchart</Button>
         
         {selectedNode && (
@@ -285,12 +449,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onInit={setRfInstance}
+        isValidConnection={isValidConnection}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
+        onInit={setRfInstance}
+        nodeTypes={nodeTypes}
         fitView
-        className="flex-grow"
-        nodeTypes={nodeTypes} // Pass the custom node types
+        className="bg-background"
       >
         <Controls />
         <Background />

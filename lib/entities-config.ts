@@ -87,7 +87,7 @@ export const entitiesConfig = {
     api: "/api/encounters",
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
-      { name: "location", label: "Location", type: "text" },
+      { name: "location", label: "Location", type: "select-location" },
       { name: "difficulty", label: "Difficulty", type: "text" },
       { name: "creatures", label: "Number of Creatures", type: "text" },
       { name: "notes", label: "Notes", type: "text" },
