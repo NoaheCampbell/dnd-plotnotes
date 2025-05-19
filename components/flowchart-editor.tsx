@@ -29,6 +29,7 @@ interface FlowchartEditorProps {
   campaignId?: number;  // For creating a new flowchart linked to a campaign
   initialName?: string; // Optional initial name for a new flowchart
   onSaveSuccess?: (savedFlowchart: any) => void; // Callback for successful save
+  syncTrigger?: number; // To trigger a manual sync from the parent
 }
 
 let id = 0;
@@ -38,7 +39,7 @@ const initialNodes: Node[] = [
   { id: '1', type: 'input', data: { label: 'Start Node' }, position: { x: 250, y: 5 } },
 ];
 
-const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaignId, initialName, onSaveSuccess }) => {
+const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaignId, initialName, onSaveSuccess, syncTrigger }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [flowchartName, setFlowchartName] = useState(initialName || 'New Flowchart');
@@ -435,6 +436,14 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       toast.error(error.message || "Failed to sync flowchart.");
     }
   }, [campaignId, setNodes, setEdges, rfInstance, setFlowchartName]);
+
+  useEffect(() => {
+    if (syncTrigger && syncTrigger > 0 && campaignId) {
+      // Check campaignId to ensure it's available before syncing
+      console.log("Flowchart sync triggered by parent update.");
+      syncFlowchartWithCampaignData();
+    }
+  }, [syncTrigger, campaignId]); // Add campaignId to dependencies
 
   const addNpcNode = useCallback(() => {
     const newNodeId = getNewNodeId();

@@ -29,8 +29,9 @@ export default function GenericEntityGrid({ data, config, campaigns = [], wikiMo
   // Manage grid data in local state for seamless updates
   const [gridData, setGridData] = useState(data);
   useEffect(() => {
+    console.log(`GenericEntityGrid: data prop changed for config: ${config.label}. New data length: ${data.length}`, data);
     setGridData(data);
-  }, [data]);
+  }, [data, config.label]);
 
   // Track which entity is expanded (wikiMode)
   const [openId, setOpenId] = useState<null | number>(null);

@@ -70,6 +70,7 @@ export default function CampaignDetailsClient({
   const [showFlowchartEditor, setShowFlowchartEditor] = useState(false);
   const [editingFlowchart, setEditingFlowchart] = useState<any | null>(null);
   const [flowchartToDelete, setFlowchartToDelete] = useState<any | null>(null);
+  const [flowchartSyncTrigger, setFlowchartSyncTrigger] = useState(0);
 
   useEffect(() => {
     async function fetchFlowcharts() {
@@ -155,6 +156,29 @@ export default function CampaignDetailsClient({
     setEditEntity({});
   };
 
+  const triggerFlowchartSync = () => {
+    setFlowchartSyncTrigger(prev => prev + 1);
+  };
+
+  const handleEntityUpdateSuccess = (sectionKey: string, updatedEntity: any, isNew: boolean) => {
+    setSectionData(prevSectionData => {
+      const currentSectionItems = prevSectionData[sectionKey] || [];
+      if (isNew) {
+        return {
+          ...prevSectionData,
+          [sectionKey]: [...currentSectionItems, updatedEntity],
+        };
+      } else {
+        return {
+          ...prevSectionData,
+          [sectionKey]: currentSectionItems.map(item => item.id === updatedEntity.id ? updatedEntity : item),
+        };
+      }
+    });
+    triggerFlowchartSync();
+    closeModal(); // Close the form modal
+  };
+
   const handleFlowchartCreatedOrUpdated = (flowchart: any) => {
     setFlowcharts(prev => {
       const index = prev.findIndex(f => f.id === flowchart.id);
@@ -206,28 +230,45 @@ export default function CampaignDetailsClient({
     { label: "Encounters", key: "encounters", data: sectionData.encounters, config: entitiesConfig.encounters },
   ];
 
-  async function handleDelete(sectionKey: string, entity: any) {
+  async function handleDelete(sectionKey: string, entityToDelete: any) {
     try {
-      const response = await fetch(`/api/${sectionKey}/${entity.id}`, { method: "DELETE" });
+      const response = await fetch(`/api/${sectionKey}/${entityToDelete.id}`, { method: "DELETE" });
 
       if (response.ok) {
         // Update local state to remove the deleted entity
         setSectionData(prevSectionData => ({
           ...prevSectionData,
-          [sectionKey]: prevSectionData[sectionKey].filter(item => item.id !== entity.id),
+          [sectionKey]: prevSectionData[sectionKey].filter(item => item.id !== entityToDelete.id),
         }));
-        // alert(`${entity.name || entity.title || 'Entity'} deleted successfully.`); // Optional success message
+        toast.success(`${entityToDelete.name || entityToDelete.title || 'Entity'} deleted successfully.`);
+        triggerFlowchartSync();
       } else {
         // Handle errors (e.g., show an error message)
         const errorData = await response.json().catch(() => ({ message: 'Failed to delete entity. Unknown error.' }));
         console.error(`Failed to delete ${sectionKey}:`, response.status, errorData);
-        alert(`Failed to delete ${entity.name || entity.title || 'Entity'}. Error: ${errorData.message || response.statusText}`);
+        alert(`Failed to delete ${entityToDelete.name || entityToDelete.title || 'Entity'}. Error: ${errorData.message || response.statusText}`);
       }
     } catch (error) {
       console.error(`Error during deletion of ${sectionKey}:`, error);
-      alert(`An unexpected error occurred while deleting ${entity.name || entity.title || 'Entity'}. See console for details.`);
+      alert(`An unexpected error occurred while deleting ${entityToDelete.name || entityToDelete.title || 'Entity'}. See console for details.`);
     }
     // window.location.reload(); // Removed the immediate reload
+  }
+
+  async function handleDeleteWrapper(sectionKey: string, entity: any) {
+    setDeleteEntity(prev => ({ ...prev, [sectionKey]: entity }));
+  }
+
+  async function confirmDelete(sectionKey: string) {
+    const entityToDelete = deleteEntity[sectionKey];
+    if (!entityToDelete) return;
+
+    await handleDelete(sectionKey, entityToDelete);
+    setDeleteEntity(prev => {
+      const newState = {...prev};
+      delete newState[sectionKey];
+      return newState;
+    });
   }
 
   return (
@@ -276,7 +317,7 @@ export default function CampaignDetailsClient({
                       campaigns={campaigns}
                       wikiMode={true}
                       onEdit={item => openModal(section.key, item)}
-                      onDelete={item => setDeleteEntity(prev => ({ ...prev, [section.key]: item }))}
+                      onDelete={item => handleDeleteWrapper(section.key, item)}
                     />
                     <GenericEntityForm
                       key={currentEditEntity ? `edit-${section.key}-${currentEditEntity.id}` : `new-${section.key}`}
@@ -289,15 +330,7 @@ export default function CampaignDetailsClient({
                       }}
                       config={getFullEntityConfig(section.config, `/${section.key}`, campaigns)}
                       availableLocations={(section.key === 'encounters' || section.key === 'npcs' || section.key === 'notes') ? sectionData.locations : undefined}
-                      onCreated={newEntity => {
-                        setSectionData(prev => ({
-                          ...prev,
-                          [section.key]: currentEditEntity 
-                            ? prev[section.key].map(e => e.id === newEntity.id ? newEntity : e) 
-                            : [...prev[section.key], newEntity]
-                        }));
-                        closeModal();
-                      }}
+                      onCreated={newEntity => handleEntityUpdateSuccess(section.key, newEntity, !(currentEditEntity && currentEditEntity.id))}
                       campaigns={campaigns}
                       entity={currentEditEntity || undefined}
                       allNpcs={section.key === 'notes' ? sectionData.npcs : undefined}
@@ -318,8 +351,7 @@ export default function CampaignDetailsClient({
                               <Button variant="outline" className="text-amber-900 dark:text-amber-200 border-amber-800/30">Cancel</Button>
                             </DialogClose>
                             <Button variant="destructive" onClick={async () => {
-                                await handleDelete(section.key, deleteEntity[section.key]);
-                                setDeleteEntity(prev => ({...prev, [section.key]: null}));
+                                await confirmDelete(section.key);
                             }}>Delete</Button>
                           </DialogFooter>
                         </DialogContent>
@@ -391,6 +423,7 @@ export default function CampaignDetailsClient({
                 flowchartId={editingFlowchart?.id}
                 initialName={editingFlowchart?.name}
                 onSaveSuccess={handleFlowchartCreatedOrUpdated}
+                syncTrigger={flowchartSyncTrigger}
                 // key={editingFlowchart?.id || 'new'} // To force re-mount if needed, or manage state reset internally
               />
             </div>
