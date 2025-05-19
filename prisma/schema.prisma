@@ -55,6 +55,7 @@ model npcs {
   bonds              String?
   flaws              String?
   backstory          String?
+  location_name      String?
   image_url          String?
   image_public_id    String?
   campaigns          campaigns? @relation(fields: [campaign_id], references: [id], onDelete: Cascade, onUpdate: NoAction)

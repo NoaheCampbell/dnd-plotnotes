@@ -33,7 +33,8 @@ export const entitiesConfig = {
         { name: "ideals", label: "Ideals" },
         { name: "bonds", label: "Bonds" },
         { name: "flaws", label: "Flaws" },
-        { name: "backstory", label: "Backstory" }
+        { name: "backstory", label: "Backstory" },
+        { name: "location_name", label: "Location Name", type: "text" }
       ]
     },
     fields: [
@@ -52,6 +53,7 @@ export const entitiesConfig = {
       { name: "bonds", label: "Bonds", type: "longtext", layout: { width: "full", rows: 3 } },
       { name: "flaws", label: "Flaws", type: "longtext", layout: { width: "full", rows: 3 } },
       { name: "backstory", label: "Backstory", type: "longtext", layout: { width: "full", rows: 6 } },
+      { name: "location_name", label: "Location Name", type: "text", layout: { width: "full" } },
       { name: "image", label: "Image", type: "file" },
     ],
     imageField: "image_url",

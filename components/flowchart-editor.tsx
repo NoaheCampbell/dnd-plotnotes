@@ -208,112 +208,229 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Failed to fetch campaign data: ${response.statusText}`);
       }
-      const data = await response.json();
+      const apiData = await response.json();
 
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
 
-      let yOffset = 50;
-      const xPositions = {
-        locations: 100,
-        npcs: 350,
-        encounters: 600,
-        notes: 850,
-      };
-      const columnCounts = { locations: 0, npcs: 0, encounters: 0, notes: 0 };
-      const nodeSpacingY = 150; // Vertical spacing between nodes in a column
+      const yOffset = 50;
+      const globalNodeSpacingY = 100; // General vertical spacing between nodes in a column
+      const linkedNodeSpacingY = 30;  // Tighter vertical spacing for nodes linked to the same target
+
       const nodeDefaultSizes = {
         locationNode: { width: 120, height: 120 },
         npcNode: { width: 80, height: 80 },
         encounterNode: { width: 130, height: 120 },
         noteNode: { width: 150, height: 100 },
+        default: { width: 150, height: 40} // Fallback size
+      };
+      
+      const HORIZONTAL_SPACING = 150; // Horizontal space between columns / linked nodes
+
+      // Define X positions for columns
+      const UNLINKED_X = 50;
+      const SOURCES_X = UNLINKED_X + (nodeDefaultSizes.default.width + HORIZONTAL_SPACING); 
+      const TARGETS_X = SOURCES_X + (nodeDefaultSizes.default.width + HORIZONTAL_SPACING);
+
+      // Trackers for Y positions within columns
+      const yTrackers = {
+        unlinked: yOffset,
+        targets: yOffset,
+        // Y positions for sources linking to specific targets will be managed by targetLinkedYTracker
       };
 
-      // Process Locations
-      data.locations?.forEach((loc: any) => {
-        newNodes.push({
-          id: `location-${loc.id}`,
+      // Map to store next Y position for sources linking to a specific target node ID
+      const targetLinkedYTracker = new Map<string, number>();
+      const locationNodeMapByName = new Map<string, Node>(); // For finding location nodes by name
+      const allCreatedNodesMap = new Map<string, Node>(); // To quickly find any node by its ID
+
+      // 1. Process Locations (as Targets)
+      apiData.locations?.forEach((locData: any) => {
+        const nodeId = `location-${locData.id}`;
+        const nodeSize = nodeDefaultSizes.locationNode || nodeDefaultSizes.default;
+        const position = { x: TARGETS_X, y: yTrackers.targets };
+        
+        const locationNode: Node = {
+          id: nodeId,
           type: 'locationNode',
-          position: { x: xPositions.locations, y: yOffset + columnCounts.locations * nodeSpacingY },
-          data: { label: loc.name || `Location ${loc.id}` },
-          style: nodeDefaultSizes.locationNode,
-        });
-        columnCounts.locations++;
-      });
-
-      // Process NPCs
-      data.npcs?.forEach((npc: any) => {
-        newNodes.push({
-          id: `npc-${npc.id}`,
-          type: 'npcNode',
-          position: { x: xPositions.npcs, y: yOffset + columnCounts.npcs * nodeSpacingY },
-          data: { label: npc.name || `NPC ${npc.id}` },
-          style: nodeDefaultSizes.npcNode,
-        });
-        columnCounts.npcs++;
-      });
-
-      // Process Encounters
-      data.encounters?.forEach((enc: any) => {
-        newNodes.push({
-          id: `encounter-${enc.id}`,
-          type: 'encounterNode',
-          position: { x: xPositions.encounters, y: yOffset + columnCounts.encounters * nodeSpacingY },
-          data: { label: enc.title || `Encounter ${enc.id}` },
-          style: nodeDefaultSizes.encounterNode,
-        });
-        columnCounts.encounters++;
-
-        // Attempt to connect encounter to location if location name matches
-        if (enc.location && data.locations) {
-          console.log(`Encounter '${enc.title}' (ID: ${enc.id}) has location string: '${enc.location}'`);
-          console.log('Available location names:', data.locations.map((l: any) => l.name));
-          const targetLocation = data.locations.find((loc: any) => loc.name === enc.location);
-          if (targetLocation) {
-            console.log(`Found matching location for '${enc.location}': ID ${targetLocation.id}, Name: ${targetLocation.name}`);
-            newEdges.push({
-              id: `edge-enc${enc.id}-loc${targetLocation.id}`,
-              source: `encounter-${enc.id}`,
-              target: `location-${targetLocation.id}`,
-            });
-            console.log('Pushed new edge:', newEdges[newEdges.length -1]);
-          } else {
-            console.log(`No matching location found for '${enc.location}'.`);
-          }
-        } else {
-          if (!enc.location) console.log(`Encounter '${enc.title}' (ID: ${enc.id}) has no location string.`);
-          if (!data.locations) console.log('No locations data available to match against.');
+          position,
+          data: { label: locData.name || `Location ${locData.id}` },
+          style: { width: nodeSize.width, height: nodeSize.height },
+        };
+        newNodes.push(locationNode);
+        allCreatedNodesMap.set(nodeId, locationNode);
+        if (locData.name) {
+          locationNodeMapByName.set(locData.name, locationNode);
         }
+        yTrackers.targets += nodeSize.height + globalNodeSpacingY;
+      });
+
+      // Helper to get node size or default
+      const getNodeSize = (type: string) => {
+        switch(type) {
+          case 'npcNode': return nodeDefaultSizes.npcNode;
+          case 'encounterNode': return nodeDefaultSizes.encounterNode;
+          case 'noteNode': return nodeDefaultSizes.noteNode;
+          case 'locationNode': return nodeDefaultSizes.locationNode;
+          default: return nodeDefaultSizes.default;
+        }
+      };
+      
+      // 2. Process NPCs
+      apiData.npcs?.forEach((npcData: any) => {
+        const nodeId = `npc-${npcData.id}`;
+        const nodeSize = getNodeSize('npcNode');
+        let position;
+        let isLinked = false;
+
+        // Assuming npcs might link to locations by name (e.g., npcData.locationName)
+        // Modify this if NPCs link differently or not at all in your data
+        const targetLocationNode = npcData.locationName ? locationNodeMapByName.get(npcData.locationName) : undefined;
+
+        if (targetLocationNode) {
+          isLinked = true;
+          const targetY = targetLocationNode.position.y;
+          const nextYForTarget = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
+          
+          position = { x: SOURCES_X, y: nextYForTarget };
+          targetLinkedYTracker.set(targetLocationNode.id, nextYForTarget + nodeSize.height + linkedNodeSpacingY);
+          
+          newEdges.push({
+            id: `edge-${nodeId}-${targetLocationNode.id}`,
+            source: nodeId,
+            target: targetLocationNode.id,
+            sourceHandle: 'right',
+            targetHandle: 'left',
+          });
+        } else {
+          // Unlinked NPC
+          position = { x: UNLINKED_X, y: yTrackers.unlinked };
+          yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
+        }
+        
+        const npcNode: Node = {
+          id: nodeId,
+          type: 'npcNode',
+          position,
+          data: { label: npcData.name || `NPC ${npcData.id}` },
+          style: { width: nodeSize.width, height: nodeSize.height },
+        };
+        newNodes.push(npcNode);
+        allCreatedNodesMap.set(nodeId, npcNode);
+      });
+
+      // 3. Process Encounters
+      apiData.encounters?.forEach((encData: any) => {
+        const nodeId = `encounter-${encData.id}`;
+        const nodeSize = getNodeSize('encounterNode');
+        let position;
+        let isLinked = false;
+
+        const targetLocationNode = encData.location ? locationNodeMapByName.get(encData.location) : undefined;
+
+        if (targetLocationNode) {
+          isLinked = true;
+          const targetY = targetLocationNode.position.y;
+          // Start stacking linked nodes from the target's Y position
+          const nextYForTarget = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
+          
+          position = { x: SOURCES_X, y: nextYForTarget };
+          // Update the Y tracker for the next node linking to this *same* target
+          targetLinkedYTracker.set(targetLocationNode.id, nextYForTarget + nodeSize.height + linkedNodeSpacingY);
+          
+          newEdges.push({
+            id: `edge-${nodeId}-${targetLocationNode.id}`,
+            source: nodeId,
+            target: targetLocationNode.id,
+            sourceHandle: 'right',
+            targetHandle: 'left',
+          });
+        } else {
+          // Unlinked Encounter
+          position = { x: UNLINKED_X, y: yTrackers.unlinked };
+          yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
+        }
+        
+        const encounterNode: Node = {
+          id: nodeId,
+          type: 'encounterNode',
+          position,
+          data: { label: encData.title || `Encounter ${encData.id}` },
+          style: { width: nodeSize.width, height: nodeSize.height },
+        };
+        newNodes.push(encounterNode);
+        allCreatedNodesMap.set(nodeId, encounterNode);
       });
       
-      // Process Notes
-      data.notes?.forEach((note: any) => {
-        newNodes.push({
-          id: `note-${note.id}`,
+      // 4. Process Notes
+      apiData.notes?.forEach((noteData: any) => {
+        const nodeId = `note-${noteData.id}`;
+        const nodeSize = getNodeSize('noteNode');
+        let position;
+        let isLinked = false;
+
+        // Example: Notes link to locations by name (e.g., noteData.locationName)
+        // Modify if Notes link to other types or via IDs
+        const targetNodeId = noteData.linkedLocationName ? locationNodeMapByName.get(noteData.linkedLocationName)?.id : undefined;
+        // Or if linking to any node type by ID: const targetNodeId = noteData.linkedEntityId ? allCreatedNodesMap.get(noteData.linkedEntityId)?.id : undefined;
+        
+        const targetNode = targetNodeId ? allCreatedNodesMap.get(targetNodeId) : undefined;
+
+        if (targetNode) {
+           // Determine if target is in TARGETS_X or SOURCES_X to place note correctly
+           let noteXPosition = SOURCES_X; // Default for notes linking to main targets
+           if (targetNode.position.x === SOURCES_X) { // If target is already a source, place note further left
+             noteXPosition = UNLINKED_X; // Or a new dedicated column if many such links
+           }
+
+          isLinked = true;
+          const targetY = targetNode.position.y;
+          const nextYForTarget = targetLinkedYTracker.get(targetNode.id) || targetY;
+          
+          position = { x: noteXPosition, y: nextYForTarget };
+          targetLinkedYTracker.set(targetNode.id, nextYForTarget + nodeSize.height + linkedNodeSpacingY);
+          
+          newEdges.push({
+            id: `edge-${nodeId}-${targetNode.id}`,
+            source: nodeId,
+            target: targetNode.id,
+            sourceHandle: 'right',
+            targetHandle: 'left', // Assuming Note.right -> Target.left
+          });
+        } else {
+          // Unlinked Note
+          position = { x: UNLINKED_X, y: yTrackers.unlinked };
+          yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
+        }
+        
+        const noteNode: Node = {
+          id: nodeId,
           type: 'noteNode',
-          position: { x: xPositions.notes, y: yOffset + columnCounts.notes * nodeSpacingY },
-          data: { label: note.title || `Note ${note.id}` },
-          style: nodeDefaultSizes.noteNode,
-        });
-        columnCounts.notes++;
+          position,
+          data: { label: noteData.title || `Note ${noteData.id}` },
+          style: { width: nodeSize.width, height: nodeSize.height },
+        };
+        newNodes.push(noteNode);
+        allCreatedNodesMap.set(nodeId, noteNode);
       });
+
+      // Sort nodes by their Y position then X to improve rendering order for overlapping nodes (optional)
+      // newNodes.sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
 
       setNodes(newNodes);
       setEdges(newEdges);
-      // Consider resetting viewport or fitting view
+      
       if (rfInstance) {
-        // Make sure rfInstance.fitView is called after nodes are updated
-        // Using a short timeout can help ensure the DOM has updated.
         setTimeout(() => rfInstance.fitView(), 0);
       }
-      setFlowchartName(`Synced: ${new Date().toLocaleString()}`); // Update flowchart name
-      toast.success("Flowchart synced with campaign data!");
+      setFlowchartName(`Synced: ${new Date().toLocaleString()}`);
+      toast.success("Flowchart synced with campaign data using new layout!");
 
     } catch (error: any) {
       console.error("Error syncing flowchart:", error);
       toast.error(error.message || "Failed to sync flowchart.");
     }
-  }, [campaignId, setNodes, setEdges, rfInstance, setFlowchartName]); // Added setFlowchartName
+  }, [campaignId, setNodes, setEdges, rfInstance, setFlowchartName]);
 
   const addNpcNode = useCallback(() => {
     const newNodeId = getNewNodeId();

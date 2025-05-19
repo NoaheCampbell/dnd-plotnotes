@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     const flaws = formData.get("flaws") as string | null;
     const backstory = formData.get("backstory") as string | null;
     const campaign_id = formData.get("campaign_id") as string | null;
+    const location_name = formData.get("location_name") as string | null;
     const imageFile = formData.get("image");
 
     let image_url: string | undefined = undefined;
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
         bonds,
         flaws,
         backstory,
+        location_name,
         campaigns: campaign_id ? { connect: { id: Number(campaign_id) } } : undefined,
         image_url,
       },

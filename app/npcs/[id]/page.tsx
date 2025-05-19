@@ -16,5 +16,11 @@ export default async function NpcDetailsPage({ params }: NpcPageProps) {
     include: { campaigns: true },
   })
   if (!npc) return notFound()
-  return <GenericEntityDetailsClient entity={npc} config={entitiesConfig.npcs} apiPath="/npcs" />
+
+  const allCampaigns = await prisma.campaigns.findMany({
+    select: { id: true, title: true },
+    orderBy: { title: 'asc' }
+  });
+
+  return <GenericEntityDetailsClient entity={npc} config={entitiesConfig.npcs} apiPath="/npcs" campaigns={allCampaigns} />
 } 

@@ -27,9 +27,15 @@ export async function GET(
     }
 
     // We only need the entities, not the campaign wrapper itself for this endpoint's purpose
-    const { npcs, locations, notes, encounters } = campaignData;
+    const { locations, notes, encounters } = campaignData;
 
-    return NextResponse.json({ npcs, locations, notes, encounters });
+    // Transform npcs to include locationName (camelCase) if location_name (snake_case) exists
+    const transformedNpcs = campaignData.npcs.map(npc => ({
+      ...npc,
+      locationName: npc.location_name, // Map from snake_case to camelCase
+    }));
+
+    return NextResponse.json({ npcs: transformedNpcs, locations, notes, encounters });
   } catch (error) {
     console.error('Failed to fetch campaign data for flowchart:', error);
     return NextResponse.json({ error: 'Failed to fetch campaign data for flowchart' }, { status: 500 });
