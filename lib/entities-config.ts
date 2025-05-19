@@ -107,9 +107,15 @@ export const entitiesConfig = {
     api: "/api/encounters",
     fields: [
       { name: "title", label: "Title", type: "text", required: true },
-      { name: "location", label: "Location", type: "select-location" },
+      { name: "campaign_location_id", label: "Location", type: "select-location" },
       { name: "difficulty", label: "Difficulty", type: "text" },
       { name: "creatures", label: "Number of Creatures", type: "text" },
+      { 
+        name: "npc_ids", 
+        label: "NPCs in Encounter", 
+        type: "multiselect-npc", 
+        required: false 
+      },
       { name: "notes", label: "Notes", type: "text" },
     ],
     imageField: undefined,

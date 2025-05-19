@@ -4,6 +4,11 @@ import { Label } from "@/components/ui/label";
 import { useRef, useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown, XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface GenericEntityFormProps {
   open: boolean;
@@ -41,6 +46,12 @@ export default function GenericEntityForm({
   const [selectedLinkedEntityId, setSelectedLinkedEntityId] = useState<string | number>(''); // Store as string to match select value, parse on submit
   const [isLoadingLinkedEntities, setIsLoadingLinkedEntities] = useState<boolean>(false);
 
+  // State for Encounter NPC selection
+  const [selectedEncounterLocationId, setSelectedEncounterLocationId] = useState<string | number>('');
+  const [filteredNpcsForEncounter, setFilteredNpcsForEncounter] = useState<Array<{ id: any; name: string; }>>([]);
+  const [npcSelectPopoverOpen, setNpcSelectPopoverOpen] = useState(false);
+  const [selectedNpcIdsForForm, setSelectedNpcIdsForForm] = useState<Set<string>>(new Set());
+
   // Effect to initialize form state for editing a Note with a linked entity
   useEffect(() => {
     if (config.label === 'Notes' && entity && open) {
@@ -54,6 +65,11 @@ export default function GenericEntityForm({
       setSelectedEntityType('');
       setAvailableEntitiesForLink([]);
       setSelectedLinkedEntityId('');
+      // Reset Encounter specific state too
+      setSelectedEncounterLocationId('');
+      setFilteredNpcsForEncounter([]);
+      setNpcSelectPopoverOpen(false);
+      setSelectedNpcIdsForForm(new Set());
     }
   }, [entity, open, config.label]);
 
@@ -103,25 +119,60 @@ export default function GenericEntityForm({
 
   }, [selectedEntityType, campaigns, availableLocations, allNpcs, allItems, allEncounters, config.label]);
 
+  // Effect to filter NPCs for Encounters when selected location changes or allNpcs are loaded
+  useEffect(() => {
+    if (config.label === 'Encounters' && selectedEncounterLocationId && allNpcs) {
+      console.log("Filtering NPCs for location ID:", selectedEncounterLocationId);
+      console.log("All NPCs available for filtering:", allNpcs);
+      const filtered = allNpcs.filter(npc => {
+        // Assuming npc.location_name reliably holds the ID of the location.
+        // If npc.location_name can be null/undefined, add checks.
+        const npcLocationId = npc.location_name; 
+        console.log(`NPC: ${npc.name}, its location_name: ${npcLocationId}, Comparing with: ${selectedEncounterLocationId}`);
+        return String(npcLocationId) === String(selectedEncounterLocationId);
+      });
+      console.log("Filtered NPCs:", filtered);
+      setFilteredNpcsForEncounter(filtered);
+    } else if (config.label === 'Encounters') {
+      // If no location selected or not an encounter form, or no NPCs, clear the list
+      setFilteredNpcsForEncounter([]);
+      if (!allNpcs && config.label === 'Encounters') {
+        console.log("allNpcs is not available for encounter NPC filtering.");
+      }
+      if (!selectedEncounterLocationId && config.label === 'Encounters') {
+        console.log("No encounter location selected for NPC filtering.");
+      }
+    }
+  }, [selectedEncounterLocationId, allNpcs, config.label]);
+
   const measuredRef = useCallback((node: HTMLFormElement | null) => {
     formElementRef.current = node;
     setFormDomIsReady(!!node);
   }, []);
 
   useEffect(() => {
-
     if (!formElementRef.current || !formDomIsReady) {
       return;
     }
 
     if (entity && open) {
       fields.forEach((field: any) => {
-        const element = formElementRef.current?.elements.namedItem(field.name);
-        if (element) {
+        const element = formElementRef.current?.elements.namedItem(field.name) as (HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | RadioNodeList | null);
+        if (element || field.type === 'multiselect-npc') {
           const valueToSet = entity[field.name];
           
-          if (field.type === "select" || field.type === "select-location") {
-            (element as HTMLSelectElement).value = valueToSet || '';
+          if (config.label === 'Encounters' && field.name === 'campaign_location_id') {
+            if (element instanceof HTMLSelectElement) element.value = valueToSet || '';
+            setSelectedEncounterLocationId(valueToSet || '');
+            console.log("Encounter form: Initial location ID set to:", valueToSet || '');
+          } else if (field.type === 'multiselect-npc' && config.label === 'Encounters') {
+            if (Array.isArray(valueToSet)) {
+              setSelectedNpcIdsForForm(new Set(valueToSet.map(String)));
+            } else {
+              setSelectedNpcIdsForForm(new Set());
+            }
+          } else if (field.type === "select" || field.type === "select-location") {
+            if (element instanceof HTMLSelectElement) element.value = valueToSet || '';
           } else if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
             if (field.type === 'date' && valueToSet) {
               element.value = valueToSet instanceof Date 
@@ -171,6 +222,16 @@ export default function GenericEntityForm({
       formData.delete('linked_entity_id');
       formData.delete('linked_entity_name');
       // linked_entity_type will be set to "" if "None" was selected, which is fine.
+    }
+    
+    // Handle npc_ids for Encounters from selectedNpcIdsForForm state
+    if (config.label === 'Encounters') {
+      // Clear any existing npc_ids from FormData (in case there was a native element with that name)
+      formData.delete('npc_ids'); 
+      selectedNpcIdsForForm.forEach(npcId => {
+        formData.append('npc_ids', npcId);
+      });
+      console.log("Submitting npc_ids:", Array.from(selectedNpcIdsForForm));
     }
     
     const isEdit = entity && entity.id;
@@ -289,22 +350,113 @@ export default function GenericEntityForm({
                           ))}
                         </select>
                       )}
-                      {field.type === "select-location" && (
-                        <select
-                          id={field.name}
-                          name={field.name}
+                      {config.label === 'Encounters' && field.type === 'select-location' && field.name === 'campaign_location_id' ? (
+                        <select 
+                          id={field.name} 
+                          name={field.name} 
                           required={field.required}
-                          className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 ring-offset-background placeholder:text-amber-700/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+                          onChange={(e) => {
+                            setSelectedEncounterLocationId(e.target.value);
+                            console.log("Encounter location changed to:", e.target.value);
+                          }}
                         >
-                          <option value="">Select {field.label}</option>
-                          {availableLocations?.map((loc) => (
-                            <option key={loc.id} value={loc.name}>
-                              {loc.name}
-                            </option>
+                          <option value="">Select Location</option>
+                          {availableLocations?.map(loc => (
+                            <option key={loc.id} value={loc.id}>{loc.name}</option>
                           ))}
                         </select>
-                      )}
-                      {field.type === "file" && (
+                      ) : field.type === "select-location" ? (
+                        <select 
+                          id={field.name} 
+                          name={field.name} 
+                          required={field.required}
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 ring-offset-background placeholder:text-amber-700/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
+                        >
+                          <option value="">Select Location</option>
+                          {availableLocations?.map(loc => (
+                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                          ))}
+                        </select>
+                      ) : field.type === "multiselect-npc" && config.label === 'Encounters' ? (
+                        <Popover open={npcSelectPopoverOpen} onOpenChange={setNpcSelectPopoverOpen}>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={npcSelectPopoverOpen}
+                              className="w-full justify-between bg-amber-50/50 border-amber-800/30 text-amber-900 hover:text-amber-900 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:hover:text-amber-200 min-h-10 h-auto py-2"
+                            >
+                              <span className="flex flex-wrap gap-1">
+                                {selectedNpcIdsForForm.size === 0 && "Select NPCs..."}
+                                {Array.from(selectedNpcIdsForForm).map(npcId => {
+                                  const npc = allNpcs?.find(n => String(n.id) === npcId);
+                                  return npc ? (
+                                    <Badge
+                                      key={npc.id}
+                                      variant="secondary"
+                                      className="bg-amber-200 text-amber-900 dark:bg-amber-700 dark:text-amber-100"
+                                    >
+                                      {npc.name}
+                                      <button 
+                                        type="button" 
+                                        className="ml-1 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                        onClick={(e) => { 
+                                          e.stopPropagation(); // Prevent popover from closing
+                                          setSelectedNpcIdsForForm(prev => {
+                                            const next = new Set(prev);
+                                            next.delete(String(npc.id));
+                                            return next;
+                                          });
+                                        }}
+                                      >
+                                        <XIcon className="h-3 w-3" />
+                                      </button>
+                                    </Badge>
+                                  ) : null;
+                                })}
+                              </span>
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-parchment-light dark:bg-stone-800">
+                            <Command>
+                              <CommandInput placeholder="Search NPCs..." className="h-9 text-amber-900 dark:text-amber-200 placeholder:text-amber-700/50 dark:placeholder:text-amber-600/50" />
+                              <CommandList>
+                                <CommandEmpty className="py-6 text-center text-sm text-amber-800 dark:text-amber-300">No NPCs found.</CommandEmpty>
+                                <CommandGroup>
+                                  {filteredNpcsForEncounter.map(npc => (
+                                    <CommandItem
+                                      key={npc.id}
+                                      value={npc.name}
+                                      onSelect={() => {
+                                        setSelectedNpcIdsForForm(prev => {
+                                          const next = new Set(prev);
+                                          if (next.has(String(npc.id))) {
+                                            next.delete(String(npc.id));
+                                          } else {
+                                            next.add(String(npc.id));
+                                          }
+                                          return next;
+                                        });
+                                      }}
+                                      className="text-amber-900 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-stone-700 aria-selected:bg-amber-200 dark:aria-selected:bg-stone-600"
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          selectedNpcIdsForForm.has(String(npc.id)) ? "opacity-100" : "opacity-0"
+                                        )}
+                                      />
+                                      {npc.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                      ) : field.type === "file" ? (
                         <Input
                           id={field.name}
                           name={field.name}
@@ -312,8 +464,7 @@ export default function GenericEntityForm({
                           accept="image/*"
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
-                      )}
-                      {field.type === "time" && (
+                      ) : field.type === "time" ? (
                         <Input
                           id={field.name}
                           name={field.name}
@@ -321,7 +472,7 @@ export default function GenericEntityForm({
                           required={field.required}
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
-                      )}
+                      ) : null }
                       {config.label === 'Notes' && field.name === 'linked_entity_type' && selectedEntityType && !isLoadingLinkedEntities && availableEntitiesForLink.length > 0 && (
                         <div className="space-y-2 mt-2 w-full">
                           <Label htmlFor="linked_entity_id" className="text-amber-900 dark:text-amber-200">
