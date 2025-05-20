@@ -67,15 +67,10 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   );
 
   const isValidConnection = useCallback((connection: Connection) => {
-    console.log("isValidConnection raw connection object:", connection); // Log the raw connection object
 
     const sourceNode = nodes.find((node) => node.id === connection.source);
     const targetNode = nodes.find((node) => node.id === connection.target);
-
-    // Log found nodes for verification
-    console.log("isValidConnection found sourceNode:", sourceNode ? { id: sourceNode.id, type: sourceNode.type, data: sourceNode.data } : null);
-    console.log("isValidConnection found targetNode:", targetNode ? { id: targetNode.id, type: targetNode.type, data: targetNode.data } : null);
-
+    
     if (!sourceNode || !targetNode) {
       console.warn("isValidConnection: source or target node not found for the connection attempt.");
       return false;
@@ -86,113 +81,93 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     const sourceHandle = connection.sourceHandle;
     const targetHandle = connection.targetHandle;
 
-    console.log(`Attempting: ${sourceType} (${sourceHandle}) -> ${targetType} (${targetHandle})`);
-
-    // REMOVE TEMPORARY DEBUG RULE
-    // if (sourceType === 'npcNode' && targetType === 'locationNode') {
-    //   console.log("TEMP RULE: Allowing ANY NPC -> Location connection for debugging.");
-    //   return true;
-    // }
-
     // --- General Rule for Vertical "Segway" Connections (Bottom to Top) ---
     if (sourceHandle === 'bottom' && targetHandle === 'top') {
-      console.log(`Allowing Segway: ${sourceType} (bottom) -> ${targetType} (top)`);
       return true;
     }
 
     // --- Rules for Horizontal/Side "Association" Connections ---
     // Rule 2: Location to Location (Horizontal)
     if (sourceType === 'locationNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Location (right) -> Location (left)");
       return true;
     }
 
     // Rule 3: NPC to Location (Side connection)
     if (sourceType === 'npcNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: NPC (right) -> Location (left)");
       return true;
     }
 
     // Rule 4: Note to Location (Side connection)
     if (sourceType === 'noteNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Note (right) -> Location (left)");
       return true;
     }
 
     // Rule 5: Encounter to Location (Side connection)
     if (sourceType === 'encounterNode' && targetType === 'locationNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Encounter (right) -> Location (left)");
       return true;
     }
 
     // --- Add new rules for Location -> Other Nodes (Side connections) ---
     // Rule 6: Location to NPC (Side connection)
     if (sourceType === 'locationNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Location (right) -> NPC (left)");
       return true;
     }
 
     // Rule 7: Location to Note (Side connection)
     if (sourceType === 'locationNode' && targetType === 'noteNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Location (right) -> Note (left)");
       return true;
     }
 
     // Rule 8: Location to Encounter (Side connection)
     if (sourceType === 'locationNode' && targetType === 'encounterNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Location (right) -> Encounter (left)");
       return true;
     }
 
     // --- Add new rules for Note <-> NPC --- 
     // Rule 9: Note to NPC (Side connection)
     if (sourceType === 'noteNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Note (right) -> NPC (left)");
       return true;
     }
     // Rule 10: NPC to Note (Side connection)
     if (sourceType === 'npcNode' && targetType === 'noteNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: NPC (right) -> Note (left)");
       return true;
     }
 
     // --- Add new rules for Encounter <-> NPC ---
     // Rule 11: Encounter to NPC (Side connection)
     if (sourceType === 'encounterNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Encounter (right) -> NPC (left)");
       return true;
     }
     // Rule 12: NPC to Encounter (Side connection)
     if (sourceType === 'npcNode' && targetType === 'encounterNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: NPC (right) -> Encounter (left)");
       return true;
     }
 
     // --- Add new rules for NPC <-> NPC ---
     // Rule 13: NPC to NPC (Horizontal right-to-left)
     if (sourceType === 'npcNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: NPC (right) -> NPC (left)");
+       ("Allowing: NPC (right) -> NPC (left)");
       return true;
     }
     // Rule 14: NPC to NPC (Vertical bottom-to-top) - Covered by general segway rule
     // if (sourceType === 'npcNode' && targetType === 'npcNode' && sourceHandle === 'bottom' && targetHandle === 'top') {
-    //   console.log("Allowing: NPC (bottom) -> NPC (top)");
+    //    ("Allowing: NPC (bottom) -> NPC (top)");
     //   return true;
     // }
 
     // --- Add new rules for Encounter <-> Note ---
     // Rule 15: Encounter to Note (Side connection)
     if (sourceType === 'encounterNode' && targetType === 'noteNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Encounter (right) -> Note (left)");
+       ("Allowing: Encounter (right) -> Note (left)");
       return true;
     }
     // Rule 16: Note to Encounter (Side connection)
     if (sourceType === 'noteNode' && targetType === 'encounterNode' && sourceHandle === 'right' && targetHandle === 'left') {
-      console.log("Allowing: Note (right) -> Encounter (left)");
+       ("Allowing: Note (right) -> Encounter (left)");
       return true;
     }
 
-    console.log(`Disallowing connection: ${sourceType} (${sourceHandle}) -> ${targetType} (${targetHandle})`);
+     (`Disallowing connection: ${sourceType} (${sourceHandle}) -> ${targetType} (${targetHandle})`);
     toast.error(`Invalid connection: ${sourceType} (${sourceHandle || 'any'}) cannot connect to ${targetType} (${targetHandle || 'any'}) using these handles.`);
     return false;
   }, [nodes]);
@@ -293,13 +268,12 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         let targetLocationNode: Node | undefined = undefined;
         // The API provides npcData.locationName (from npc.location_name in DB)
         // This field might contain an ID (as a string/number) or a name string.
-        console.log(`Flowchart Sync: Processing NPC - ID: ${npcData.id}, Name: ${npcData.name}, API's locationName: ${npcData.locationName}`);
+         (`Flowchart Sync: Processing NPC - ID: ${npcData.id}, Name: ${npcData.name}, API's locationName: ${npcData.locationName}`);
 
         if (npcData.locationName !== null && npcData.locationName !== undefined) {
           const locNameStr = String(npcData.locationName);
           // Attempt 1: Treat locationName as an ID string
           targetLocationNode = allCreatedNodesMap.get(`location-${locNameStr}`);
-          console.log(`  NPC ${npcData.id} Attempt 1 (locationName as ID '${locNameStr}'): Found node -`, targetLocationNode ? targetLocationNode.id : 'Not Found');
 
           // Attempt 2: Treat locationName as a Name string if ID lookup failed
           if (!targetLocationNode) {
@@ -308,7 +282,6 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             if (entry) {
               targetLocationNode = entry[1];
             }
-            console.log(`  NPC ${npcData.id} Attempt 2 (locationName as Name '${locNameStr}' -> Cleaned '${npcLocationNameClean}'): Found node -`, targetLocationNode ? targetLocationNode.id : 'Not Found');
           }
         }
 
@@ -324,7 +297,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           targetLinkedYTracker.set(targetLocationNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
           // Log for NPC setting targetLinkedYTracker
           if (targetLocationNode.data.label === 'dsfsdaf') { // Specific log for the problematic location
-            console.log(`NPC (${npcData.name}) linking to ${targetLocationNode.data.label} (ID: ${targetLocationNode.id}): actualY = ${actualY}, Set targetLinkedYTracker to: ${actualY + nodeSize.height + linkedNodeSpacingY}`);
+             (`NPC (${npcData.name}) linking to ${targetLocationNode.data.label} (ID: ${targetLocationNode.id}): actualY = ${actualY}, Set targetLinkedYTracker to: ${actualY + nodeSize.height + linkedNodeSpacingY}`);
           }
           yTrackers.sources = Math.max(yTrackers.sources, actualY + nodeSize.height + globalNodeSpacingY);
           
@@ -364,8 +337,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         // Try to link Encounter to Location
         let locationNodeForEncounter: Node | undefined = undefined;
 
-        console.log(`Flowchart Sync: Processing Encounter - ID: ${encData.id}, Title: ${encData.title}`);
-        console.log(`  Attempting to link using location_id: '${encData.location_id}', location_name: '${encData.location}'`);
+         (`Flowchart Sync: Processing Encounter - ID: ${encData.id}, Title: ${encData.title}`);
+         (`  Attempting to link using location_id: '${encData.location_id}', location_name: '${encData.location}'`);
 
         // Primary linking mechanism: Use location_id (foreign key from encounter to location)
         if (encData.location_id) {
@@ -395,7 +368,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           if (locationNodeForEncounter.data.label === 'dsfsdaf') { // Specific log
             const trackerHasKey = targetLinkedYTracker.has(locationNodeForEncounter.id);
             const trackerValue = trackerHasKey ? targetLinkedYTracker.get(locationNodeForEncounter.id) : 'N/A';
-            console.log(`Encounter (${encData.title}) linking to ${locationNodeForEncounter.data.label} (ID: ${locationNodeForEncounter.id}): targetLinkedYTracker.has() = ${trackerHasKey}, .get() = ${trackerValue}`);
+             (`Encounter (${encData.title}) linking to ${locationNodeForEncounter.data.label} (ID: ${locationNodeForEncounter.id}): targetLinkedYTracker.has() = ${trackerHasKey}, .get() = ${trackerValue}`);
           }
 
           xPos = SOURCES_X; // Position as a source to the location
@@ -410,7 +383,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
           // Log final yPos for problematic encounter/location
           if (locationNodeForEncounter.data.label === 'dsfsdaf') {
-            console.log(`Encounter (${encData.title}) final yPos = ${yPos}`);
+             (`Encounter (${encData.title}) final yPos = ${yPos}`);
           }
 
           targetLinkedYTracker.set(targetNodeId, yPos + getNodeSize('encounterNode').height + linkedNodeSpacingY);
@@ -427,7 +400,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             style: { stroke: '#A1A1AA', strokeWidth: 2 }, // Zinc color for associations
           });
         } else {
-          console.log(`  Encounter ${encData.id} (${encData.title}) WILL NOT BE LINKED. No location found.`);
+           (`  Encounter ${encData.id} (${encData.title}) WILL NOT BE LINKED. No location found.`);
           // If still not linked, update yTracker for the UNLINKED_X column before placing the node
           yPos = yTrackers.unlinked; // Use current unlinked Y
           yTrackers.unlinked += getNodeSize('encounterNode').height + globalNodeSpacingY; // Increment for next unlinked
@@ -642,7 +615,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   useEffect(() => {
     if (syncTrigger && syncTrigger > 0 && campaignId) {
       // Check campaignId to ensure it's available before syncing
-      console.log("Flowchart sync triggered by parent update.");
+       ("Flowchart sync triggered by parent update.");
       syncFlowchartWithCampaignData();
     }
   }, [syncTrigger, campaignId]); // Add campaignId to dependencies
@@ -653,23 +626,19 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
-      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
       setLastPaneClickFlowPosition(null); // Clear after use
     } else if (rfInstance) {
       // Fallback: Place 100px/100px (screen pixels) from viewport top-left
       const screenFallbackOffset = { x: 100, y: 100 }; 
       newNodePosition = rfInstance.project(screenFallbackOffset);
-      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
     } else {
       // Absolute fallback if rfInstance is not available
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
-      console.log('Using absolute fallback position:', newNodePosition);
     }
 
     // Add a small random offset to prevent perfect stacking
     newNodePosition.x += (Math.random() - 0.5) * 10; 
     newNodePosition.y += (Math.random() - 0.5) * 10;
-    console.log('Final position for new NPC node:', newNodePosition);
 
     const newNode: Node = {
       id: newNodeId,
@@ -687,20 +656,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
-      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
       setLastPaneClickFlowPosition(null); 
     } else if (rfInstance) {
       const screenFallbackOffset = { x: 100, y: 100 }; 
       newNodePosition = rfInstance.project(screenFallbackOffset);
-      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
     } else {
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
-      console.log('Using absolute fallback position:', newNodePosition);
     }
 
     newNodePosition.x += (Math.random() - 0.5) * 10; 
     newNodePosition.y += (Math.random() - 0.5) * 10;
-    console.log('Final position for new Location node:', newNodePosition);
 
     const newNode: Node = {
       id: newNodeId,
@@ -718,20 +683,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
-      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
       setLastPaneClickFlowPosition(null); 
     } else if (rfInstance) {
       const screenFallbackOffset = { x: 100, y: 100 }; 
       newNodePosition = rfInstance.project(screenFallbackOffset);
-      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
     } else {
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
-      console.log('Using absolute fallback position:', newNodePosition);
     }
 
     newNodePosition.x += (Math.random() - 0.5) * 10; 
     newNodePosition.y += (Math.random() - 0.5) * 10;
-    console.log('Final position for new Note node:', newNodePosition);
 
     const newNode: Node = {
       id: newNodeId,
@@ -749,20 +710,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
-      console.log('Using lastPaneClickFlowPosition:', newNodePosition);
       setLastPaneClickFlowPosition(null); 
     } else if (rfInstance) {
       const screenFallbackOffset = { x: 100, y: 100 }; 
       newNodePosition = rfInstance.project(screenFallbackOffset);
-      console.log('Using viewport fallback. Screen offset:', screenFallbackOffset, 'Projected to:', newNodePosition);
     } else {
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
-      console.log('Using absolute fallback position:', newNodePosition);
     }
 
     newNodePosition.x += (Math.random() - 0.5) * 10; 
     newNodePosition.y += (Math.random() - 0.5) * 10;
-    console.log('Final position for new Encounter node:', newNodePosition);
 
     const newNode: Node = {
       id: newNodeId,
@@ -812,7 +769,6 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         y: event.clientY - pane.top,
       });
       setLastPaneClickFlowPosition(projectedPosition);
-      console.log('Pane clicked. Projected position:', projectedPosition);
     } else {
       // Click was on a node or control, not the pane directly, or rfInstance not ready
       // Optionally clear the last click position or leave it as is depending on desired UX

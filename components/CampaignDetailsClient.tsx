@@ -149,7 +149,6 @@ export default function CampaignDetailsClient({
             console.warn("Encounter entityToEdit does not have an 'npcs' array or 'npc_ids' array for NPC selection.");
             plainDataEntity.npc_ids = []; // Default to empty array
           }
-          console.log("Prepared encounter entity for edit:", plainDataEntity);
         }
 
       } else {

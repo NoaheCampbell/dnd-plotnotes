@@ -119,33 +119,25 @@ export default function GenericEntityForm({
 
   }, [selectedEntityType, campaigns, availableLocations, allNpcs, allItems, allEncounters, config.label]);
 
-  // Log props/state just before the NPC filtering effect for Encounters
-  if (config.label === 'Encounters') {
-    console.log('[GenericEntityForm Encounter Render Check] selectedEncounterLocationId:', selectedEncounterLocationId, 'allNpcs available:', !!allNpcs, 'allNpcs length:', allNpcs?.length);
-  }
-
   // Effect to filter NPCs for Encounters when selected location changes or allNpcs are loaded
   useEffect(() => {
     if (config.label === 'Encounters' && selectedEncounterLocationId && allNpcs) {
-      console.log("Filtering NPCs for location ID:", selectedEncounterLocationId);
-      console.log("All NPCs available for filtering:", allNpcs);
       const filtered = allNpcs.filter(npc => {
         // Assuming npc.location_name reliably holds the ID of the location.
         // If npc.location_name can be null/undefined, add checks.
         const npcLocationId = npc.location_name; 
-        console.log(`NPC: ${npc.name}, its location_name: ${npcLocationId}, Comparing with: ${selectedEncounterLocationId}`);
+         (`NPC: ${npc.name}, its location_name: ${npcLocationId}, Comparing with: ${selectedEncounterLocationId}`);
         return String(npcLocationId) === String(selectedEncounterLocationId);
       });
-      console.log("Filtered NPCs:", filtered);
       setFilteredNpcsForEncounter(filtered);
     } else if (config.label === 'Encounters') {
       // If no location selected or not an encounter form, or no NPCs, clear the list
       setFilteredNpcsForEncounter([]);
       if (!allNpcs && config.label === 'Encounters') {
-        console.log("allNpcs is not available for encounter NPC filtering.");
+         ("allNpcs is not available for encounter NPC filtering.");
       }
       if (!selectedEncounterLocationId && config.label === 'Encounters') {
-        console.log("No encounter location selected for NPC filtering.");
+         ("No encounter location selected for NPC filtering.");
       }
     }
   }, [selectedEncounterLocationId, allNpcs, config.label]);
@@ -169,7 +161,6 @@ export default function GenericEntityForm({
           if (config.label === 'Encounters' && field.name === 'campaign_location_id') {
             if (element instanceof HTMLSelectElement) element.value = valueToSet || '';
             setSelectedEncounterLocationId(valueToSet || '');
-            console.log("Encounter form: Initial location ID set to:", valueToSet || '');
           } else if (field.type === 'multiselect-npc' && config.label === 'Encounters') {
             if (Array.isArray(valueToSet)) {
               setSelectedNpcIdsForForm(new Set(valueToSet.map(String)));
@@ -236,7 +227,6 @@ export default function GenericEntityForm({
       selectedNpcIdsForForm.forEach(npcId => {
         formData.append('npc_ids', npcId);
       });
-      console.log("Submitting npc_ids:", Array.from(selectedNpcIdsForForm));
     }
     
     const isEdit = entity && entity.id;
@@ -364,7 +354,6 @@ export default function GenericEntityForm({
                           value={selectedEncounterLocationId}
                           onChange={(e) => {
                             setSelectedEncounterLocationId(e.target.value);
-                            console.log("Encounter location changed to:", e.target.value);
                           }}
                         >
                           <option value="">Select Location</option>

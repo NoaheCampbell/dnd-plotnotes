@@ -43,12 +43,6 @@ export async function GET(
     }));
 
     const transformedEncounters = campaignData.encounters.map((encounter: any) => {
-      // Log raw encounter data from Prisma for debugging location linking
-      console.log(
-        `API Sync: Encounter ID: ${encounter.id}, Title: ${encounter.title}, ` +
-        `DB campaign_location_id: ${encounter.campaign_location_id}, ` +
-        `DB location object: ${JSON.stringify(encounter.location)}`
-      );
 
       return {
         id: encounter.id,
