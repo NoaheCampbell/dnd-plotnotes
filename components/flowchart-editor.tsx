@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import ReactFlow, {
   Controls,
   Background,
@@ -48,6 +48,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentNodeLabel, setCurrentNodeLabel] = useState<string>("");
   const [lastPaneClickFlowPosition, setLastPaneClickFlowPosition] = useState<{x: number, y: number} | null>(null);
+  const [flowchartViewKey, setFlowchartViewKey] = useState<number>(1); // Key for forcing ReactFlow remount
+  const blockLoadAfterSyncRef = useRef<boolean>(false); // Prevent loadFlowchart after sync using a ref
 
   // Define node types
   const nodeTypes = useMemo(() => ({
@@ -215,8 +217,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const newEdges: Edge[] = [];
 
       const yOffset = 50;
-      const globalNodeSpacingY = 100; // General vertical spacing between nodes in a column
-      const linkedNodeSpacingY = 30;  // Tighter vertical spacing for nodes linked to the same target
+      const globalNodeSpacingY = 150; // General vertical spacing between nodes in a column
+      const linkedNodeSpacingY = 50;  // Tighter vertical spacing for nodes linked to the same target
 
       const nodeDefaultSizes = {
         locationNode: { width: 120, height: 120 },
@@ -248,6 +250,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const targetLinkedYTracker = new Map<string, number>();
       const locationNodeMapByName = new Map<string, Node>(); // For finding location nodes by name
       const allCreatedNodesMap = new Map<string, Node>(); // To quickly find any node by its ID
+      let globalZIndexCounter = 1; // Initialize z-index counter
 
       // 1. Process Locations (as Targets)
       apiData.locations?.forEach((locData: any) => {
@@ -261,6 +264,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           position,
           data: { label: locData.name || `Location ${locData.id}` },
           style: { width: nodeSize.width, height: nodeSize.height },
+          zIndex: globalZIndexCounter++,
         };
         newNodes.push(locationNode);
         allCreatedNodesMap.set(nodeId, locationNode);
@@ -309,14 +313,20 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
 
         if (targetLocationNode) {
-          const targetY = targetLocationNode.position.y;
-          const nextYForTargetStack = targetLinkedYTracker.get(targetLocationNode.id) || targetY;
-          
-          const actualY = Math.max(nextYForTargetStack, yTrackers.sources);
+          let actualY;
+          if (targetLinkedYTracker.has(targetLocationNode.id)) {
+            actualY = targetLinkedYTracker.get(targetLocationNode.id)!;
+          } else {
+            actualY = Math.max(targetLocationNode.position.y, yTrackers.sources);
+          }
           position = { x: SOURCES_X, y: actualY };
           
           targetLinkedYTracker.set(targetLocationNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
-          yTrackers.sources = actualY + nodeSize.height + globalNodeSpacingY;
+          // Log for NPC setting targetLinkedYTracker
+          if (targetLocationNode.data.label === 'dsfsdaf') { // Specific log for the problematic location
+            console.log(`NPC (${npcData.name}) linking to ${targetLocationNode.data.label} (ID: ${targetLocationNode.id}): actualY = ${actualY}, Set targetLinkedYTracker to: ${actualY + nodeSize.height + linkedNodeSpacingY}`);
+          }
+          yTrackers.sources = Math.max(yTrackers.sources, actualY + nodeSize.height + globalNodeSpacingY);
           
           newEdges.push({
             id: `edge-${nodeId}-${targetLocationNode.id}`,
@@ -331,6 +341,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             position,
             data: { label: npcData.name || `NPC ${npcData.id}` },
             style: { width: nodeSize.width, height: nodeSize.height },
+            zIndex: globalZIndexCounter++,
           };
           newNodes.push(npcNode);
           allCreatedNodesMap.set(nodeId, npcNode);
@@ -341,11 +352,14 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
       // 3. Process Encounters
       // First, create all encounter nodes and map them
+      // let remappedEncounterIds: { [originalId: string]: string } = {}; // This was unused
+
       apiData.encounters?.forEach((encData: any) => {
-        const encounterNodeId = `encounter-${encData.id}`;
+        let currentEncounterNodeId = `encounter-${encData.id}`;
+
         let xPos = UNLINKED_X;
         let yPos = yTrackers.unlinked;
-        // let linkedToTarget = false; // This variable is not used, can be removed or kept if planning future use
+        // let linkedToTarget = false; // This variable is not used
 
         // Try to link Encounter to Location
         let locationNodeForEncounter: Node | undefined = undefined;
@@ -377,7 +391,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
         
         if (locationNodeForEncounter) {
-          console.log(`  Encounter ${encData.id} (${encData.title}) WILL BE LINKED to Location ID: ${locationNodeForEncounter.id} (Name: ${locationNodeForEncounter.data.label})`);
+          // Log for Encounter checking targetLinkedYTracker
+          if (locationNodeForEncounter.data.label === 'dsfsdaf') { // Specific log
+            const trackerHasKey = targetLinkedYTracker.has(locationNodeForEncounter.id);
+            const trackerValue = trackerHasKey ? targetLinkedYTracker.get(locationNodeForEncounter.id) : 'N/A';
+            console.log(`Encounter (${encData.title}) linking to ${locationNodeForEncounter.data.label} (ID: ${locationNodeForEncounter.id}): targetLinkedYTracker.has() = ${trackerHasKey}, .get() = ${trackerValue}`);
+          }
+
           xPos = SOURCES_X; // Position as a source to the location
           const targetNodeId = locationNodeForEncounter.id;
 
@@ -388,12 +408,17 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             yPos = Math.max(locationNodeForEncounter.position.y, yTrackers.sources);
           }
 
+          // Log final yPos for problematic encounter/location
+          if (locationNodeForEncounter.data.label === 'dsfsdaf') {
+            console.log(`Encounter (${encData.title}) final yPos = ${yPos}`);
+          }
+
           targetLinkedYTracker.set(targetNodeId, yPos + getNodeSize('encounterNode').height + linkedNodeSpacingY);
           yTrackers.sources = Math.max(yTrackers.sources, yPos + getNodeSize('encounterNode').height + globalNodeSpacingY);
 
           newEdges.push({
-            id: `edge-${encounterNodeId}-to-${targetNodeId}`,
-            source: encounterNodeId,
+            id: `edge-${currentEncounterNodeId}-to-${targetNodeId}`,
+            source: currentEncounterNodeId, // Use potentially modified ID
             target: targetNodeId,
             sourceHandle: 'right', 
             targetHandle: 'left',
@@ -409,7 +434,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
 
         const encounterNode: Node = {
-          id: encounterNodeId,
+          id: currentEncounterNodeId,
           type: 'encounterNode',
           data: { 
             label: encData.title || 'Unnamed Encounter', 
@@ -428,9 +453,10 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           },
           position: { x: xPos, y: yPos },
           style: getNodeSize('encounterNode'),
+          zIndex: globalZIndexCounter++,
         };
         newNodes.push(encounterNode);
-        allCreatedNodesMap.set(encounterNodeId, encounterNode);
+        allCreatedNodesMap.set(currentEncounterNodeId, encounterNode);
 
         // NEW: Create edges from Encounter to its NPCs
         if (encData.npcs && Array.isArray(encData.npcs)) {
@@ -439,18 +465,17 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             const npcNode = allCreatedNodesMap.get(npcNodeId);
 
             if (npcNode) {
-              // Check if an edge already exists (e.g. from NPC to Encounter) to avoid duplicates if logic allows both
               const edgeExists = newEdges.some(
-                edge => (edge.source === encounterNodeId && edge.target === npcNodeId) ||
-                        (edge.source === npcNodeId && edge.target === encounterNodeId)
+                edge => (edge.source === currentEncounterNodeId && edge.target === npcNodeId) ||
+                        (edge.source === npcNodeId && edge.target === currentEncounterNodeId)
               );
 
               if (!edgeExists) {
                  newEdges.push({
-                  id: `edge-${encounterNodeId}-to-${npcNodeId}`,
-                  source: encounterNodeId,
+                  id: `edge-${currentEncounterNodeId}-to-${npcNodeId}`,
+                  source: currentEncounterNodeId, // Use potentially modified ID
                   target: npcNodeId,
-                  sourceHandle: 'right', // Assuming Encounter to NPC is right-to-left
+                  sourceHandle: 'right',
                   targetHandle: 'left',
                   type: 'smoothstep',
                   animated: false,
@@ -458,7 +483,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
                 });
               }
             } else {
-              console.warn(`Encounter-NPC Link: NPC node with ID ${npcNodeId} not found for encounter ${encounterNodeId}`);
+              console.warn(`Encounter-NPC Link: NPC node with ID ${npcNodeId} not found for encounter ${currentEncounterNodeId}`);
             }
           });
         }
@@ -487,10 +512,12 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
              columnYTrackerRef = yTrackers.unlinked;
            }
 
-          const targetY = targetNode.position.y;
-          const nextYForTargetStack = targetLinkedYTracker.get(targetNode.id) || targetY;
-          
-          const actualY = Math.max(nextYForTargetStack, columnYTrackerRef);
+          let actualY;
+          if (targetLinkedYTracker.has(targetNode.id)) {
+            actualY = targetLinkedYTracker.get(targetNode.id)!;
+          } else {
+            actualY = Math.max(targetNode.position.y, columnYTrackerRef);
+          }
           position = { x: noteXPosition, y: actualY };
           
           targetLinkedYTracker.set(targetNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
@@ -513,6 +540,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             position,
             data: { label: noteData.title || `Note ${noteData.id}` },
             style: { width: nodeSize.width, height: nodeSize.height },
+            zIndex: globalZIndexCounter++,
           };
           newNodes.push(noteNode);
           allCreatedNodesMap.set(nodeId, noteNode);
@@ -534,6 +562,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           position,
           data: { label: npcData.name || `NPC ${npcData.id}` },
           style: { width: nodeSize.width, height: nodeSize.height },
+          zIndex: globalZIndexCounter++,
         };
         newNodes.push(npcNode);
         allCreatedNodesMap.set(nodeId, npcNode);
@@ -552,6 +581,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           position,
           data: { label: encData.title || `Encounter ${encData.id}` },
           style: { width: nodeSize.width, height: nodeSize.height },
+          zIndex: globalZIndexCounter++,
         };
         newNodes.push(encounterNode);
         allCreatedNodesMap.set(nodeId, encounterNode);
@@ -570,23 +600,35 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           position,
           data: { label: noteData.title || `Note ${noteData.id}` },
           style: { width: nodeSize.width, height: nodeSize.height },
+          zIndex: globalZIndexCounter++,
         };
         newNodes.push(noteNode);
         allCreatedNodesMap.set(nodeId, noteNode);
       });
 
-      // Sort nodes by their Y position then X to improve rendering order for overlapping nodes (optional)
-      // newNodes.sort((a, b) => a.position.y - b.position.y || a.position.x - b.position.x);
+      // Sort nodes by their Y position then X to improve rendering order for overlapping nodes
+      newNodes.sort((a, b) => {
+        if (a.position.y !== b.position.y) {
+          return a.position.y - b.position.y;
+        }
+        return a.position.x - b.position.x; // Secondary sort by X if Y is the same
+      });
 
+      // Increment key to force ReactFlow to remount and re-render with new nodes/edges
+      setFlowchartViewKey(prevKey => prevKey + 1);
+      blockLoadAfterSyncRef.current = true; // Signal that a sync just happened
+
+      // Set nodes and edges directly now
       setNodes(newNodes);
       setEdges(newEdges);
       
       if (rfInstance) {
+        // fitView might be better after nodes are confirmed to be rendered in their new positions
         setTimeout(() => {
           if (rfInstance) { // Re-check rfInstance just in case
-            rfInstance.fitView({ padding: 0.2, duration: 200 }); // Added padding and a short animation duration
+            rfInstance.fitView({ padding: 0.2, duration: 200 }); 
           }
-        }, 100); // Increased delay to 100ms
+        }, 50); // Short delay for fitView after nodes are set
       }
       setFlowchartName(`Synced: ${new Date().toLocaleString()}`);
       toast.success("Flowchart synced with campaign data using new layout!");
@@ -831,10 +873,14 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   }, [rfInstance, setNodes, setEdges, setFlowchartName, setCurrentFlowchartId, initialName, initialNodes]);
 
   useEffect(() => {
+    if (blockLoadAfterSyncRef.current) {
+      blockLoadAfterSyncRef.current = false; // Consume the flag, don't load this cycle
+      return;
+    }
     if (flowchartId) {
       loadFlowchart(flowchartId);
     }
-  }, [flowchartId, loadFlowchart]);
+  }, [flowchartId, loadFlowchart]); // Removed blockLoadAfterSync from deps, ref changes don't trigger effect
 
   const saveFlowchart = async () => {
     if (!campaignId && !currentFlowchartId) {
@@ -920,6 +966,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         )}
       </div>
       <ReactFlow
+        key={flowchartViewKey}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
