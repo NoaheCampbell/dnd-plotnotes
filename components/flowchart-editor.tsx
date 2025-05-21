@@ -29,6 +29,7 @@ import '@reactflow/node-resizer/dist/style.css';
 import { toast } from 'sonner';
 import { locations as Location } from '@prisma/client';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import FlowchartSidebar from './FlowchartSidebar';
 
 interface FlowchartEditorProps {
   flowchartId?: string;
@@ -61,6 +62,19 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   type SaveState = 'idle' | 'saving' | 'success' | 'error';
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [saveMessage, setSaveMessage] = useState<string>('');
+
+  // State for sidebar data
+  const [sidebarData, setSidebarData] = useState<any>(null); // Using any for now, can be refined
+  const [sidebarLoading, setSidebarLoading] = useState<boolean>(false); // For sidebar loading state
+  const reactFlowWrapper = useRef<HTMLDivElement>(null); // Ref for the ReactFlow wrapper
+
+  const nodeDefaultSizes = useMemo(() => ({ 
+    locationNode: { width: 120, height: 120 },
+    npcNode: { width: 80, height: 80 },
+    encounterNode: { width: 130, height: 120 },
+    noteNode: { width: 150, height: 100 },
+    default: { width: 150, height: 40 }
+  }), []);
 
   const nodeTypes = useMemo(() => ({
     npcNode: (props: NodeProps<ConfigurableNodeData>) => <ConfigurableNode {...props} config={npcNodeConfig} />,
@@ -194,18 +208,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
 
+      // Set sidebar data
+      // setSidebarData(apiData);
+
       const yOffset = 50;
       const globalNodeSpacingY = 150; // General vertical spacing between nodes in a column
       const linkedNodeSpacingY = 50;  // Tighter vertical spacing for nodes linked to the same target
 
-      const nodeDefaultSizes = {
-        locationNode: { width: 120, height: 120 },
-        npcNode: { width: 80, height: 80 },
-        encounterNode: { width: 130, height: 120 },
-        noteNode: { width: 150, height: 100 },
-        default: { width: 150, height: 40} // Fallback size
-      };
-      
       const HORIZONTAL_SPACING = 150; // Horizontal space between columns / linked nodes
 
       // Define X positions for columns
@@ -720,6 +729,33 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     }
   }, [campaignId, setNodes, setEdges, rfInstance, setFlowchartName]);
 
+  // useEffect to load data for the sidebar
+  useEffect(() => {
+    const fetchSidebarData = async () => {
+      if (!campaignId) {
+        setSidebarData(null); // Clear sidebar if no campaignId
+        return;
+      }
+      setSidebarLoading(true);
+      try {
+        const response = await fetch(`/api/campaigns/${campaignId}/sync-flowchart-data`);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to fetch sidebar data: ${response.statusText}`);
+        }
+        const apiData = await response.json();
+        setSidebarData(apiData);
+      } catch (error: any) {
+        console.error("Error fetching sidebar data:", error);
+        toast.error(error.message || "Failed to load entities for sidebar.");
+        setSidebarData(null); // Clear on error
+      }
+      setSidebarLoading(false);
+    };
+
+    fetchSidebarData();
+  }, [campaignId]); // Re-fetch when campaignId changes
+
   useEffect(() => {
     if (syncTrigger && syncTrigger > 0 && campaignId && !flowchartId) { 
       // Only auto-sync via trigger if there's a campaign, a trigger,
@@ -1017,6 +1053,67 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     }
   }, [saveState]);
 
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      if (!rfInstance || !reactFlowWrapper.current) {
+        return;
+      }
+
+      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+      const dataString = event.dataTransfer.getData('application/reactflow');
+      
+      if (!dataString) {
+        console.warn("onDrop: No data found in dataTransfer object.");
+        return;
+      }
+
+      let draggedData;
+      try {
+        draggedData = JSON.parse(dataString);
+      } catch (e) {
+        console.error("onDrop: Failed to parse dragged data", e);
+        return;
+      }
+
+      const { type: nodeType, name: nodeName, id: entityId } = draggedData;
+
+      if (!nodeType) {
+        console.warn("onDrop: Dragged data is missing 'type'.");
+        return;
+      }
+      
+      // Adjust position to be relative to the React Flow pane
+      const position = rfInstance.project({
+        x: event.clientX - reactFlowBounds.left,
+        y: event.clientY - reactFlowBounds.top,
+      });
+
+      const newNodeId = `${nodeType}-${entityId}-${getNewNodeId()}`; // Ensure unique ID, incorporate original entity ID
+
+      const defaultSize = nodeDefaultSizes[nodeType as keyof typeof nodeDefaultSizes] || nodeDefaultSizes.default;
+
+      const newNode: Node = {
+        id: newNodeId,
+        type: nodeType,
+        position,
+        data: { label: nodeName || `New ${nodeType}` }, // Use dragged name or a default
+        style: { width: defaultSize.width, height: defaultSize.height },
+        // zIndex can be managed if needed, or let React Flow handle it.
+      };
+
+      setNodes((nds) => nds.concat(newNode));
+      toast.success(`Added ${nodeName || nodeType} to flowchart.`);
+    },
+    [rfInstance, setNodes, nodeDefaultSizes] // Correct: nodeDefaultSizes is in scope and included in deps
+  );
+
   return (
     <div style={{ height: '100%', width: '100%' }} className="bg-background dark:bg-stone-900/50 flex flex-col">
       <div 
@@ -1079,24 +1176,32 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           </div>
         )}
       </div>
-      <ReactFlow
-        key={flowchartViewKey}
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        isValidConnection={isValidConnection}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        onInit={setRfInstance}
-        nodeTypes={nodeTypes}
-        fitView
-        className="bg-background"
-      >
-        <Controls />
-        <Background />
-      </ReactFlow>
+      {/* Main content area with sidebar and flowchart */}
+      <div className="flex flex-1 overflow-hidden"> 
+        <FlowchartSidebar campaignData={sidebarData} loading={sidebarLoading} />
+        <div className="flex-grow h-full" ref={reactFlowWrapper}>
+          <ReactFlow
+            key={flowchartViewKey}
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            isValidConnection={isValidConnection}
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
+            onInit={setRfInstance}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            nodeTypes={nodeTypes}
+            fitView
+            className="bg-background"
+          >
+            <Controls />
+            <Background />
+          </ReactFlow>
+        </div>
+      </div>
     </div>
   );
 };
