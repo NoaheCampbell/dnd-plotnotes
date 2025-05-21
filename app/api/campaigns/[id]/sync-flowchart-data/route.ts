@@ -17,7 +17,11 @@ export async function GET(
       include: {
         npcs: true,
         locations: true,
-        notes: true,
+        notes: {
+          include: {
+            entity_links: true,
+          }
+        },
         encounters: {
           include: {
             npcs: { select: { id: true } },
@@ -36,12 +40,6 @@ export async function GET(
       locationName: npc.location_name,
     }));
 
-    const transformedNotes = campaignData.notes.map((note: any) => ({
-      ...note,
-      linkedEntityType: note.linked_entity_type,
-      linkedEntityId: note.linked_entity_id,
-    }));
-
     const transformedEncounters = campaignData.encounters.map((encounter: any) => {
 
       return {
@@ -58,7 +56,7 @@ export async function GET(
     return NextResponse.json({ 
       npcs: transformedNpcs, 
       locations: campaignData.locations,
-      notes: transformedNotes, 
+      notes: campaignData.notes,
       encounters: transformedEncounters
     });
   } catch (error) {

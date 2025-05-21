@@ -211,6 +211,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         unlinked: yOffset,
         sources: yOffset, // Added for the SOURCES_X column
         targets: yOffset,
+        notes: yOffset,
       };
 
       const unlinkedNpcData: any[] = [];
@@ -442,66 +443,70 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
       });
       
-      // 4. Process Notes (prioritizing linked ones)
+      // 4. Process Notes
+      // This section will now create all note nodes first, then create edges based on entity_links.
+      // Unlinked notes will be processed at the end with other unlinked entities.
+      const NOTES_X = SOURCES_X - (nodeDefaultSizes.noteNode.width + HORIZONTAL_SPACING); // New column for notes, to the left of sources
+      yTrackers.notes = yOffset; // Add a Y tracker for the notes column
+
       apiData.notes?.forEach((noteData: any) => {
         const nodeId = `note-${noteData.id}`;
         const nodeSize = getNodeSize('noteNode');
-        let position;
-
-        let targetNodeIdFromLink: string | undefined = undefined;
-        if (noteData.linkedEntityType && noteData.linkedEntityId) {
-          const prefix = String(noteData.linkedEntityType).toLowerCase();
-          targetNodeIdFromLink = `${prefix}-${noteData.linkedEntityId}`;
-        }
+        // Initial placement for all notes. This might be adjusted if they have links.
+        // For now, let's place them in their own column or the unlinked column if they have no links.
         
-        const targetNode = targetNodeIdFromLink ? allCreatedNodesMap.get(targetNodeIdFromLink) : undefined;
+        const noteNode: Node = {
+          id: nodeId,
+          type: 'noteNode',
+          position: { x: NOTES_X, y: yTrackers.notes }, // Tentative position
+          data: { label: noteData.title || `Note ${noteData.id}`, entity_links: noteData.entity_links || [] },
+          style: { width: nodeSize.width, height: nodeSize.height },
+          zIndex: globalZIndexCounter++,
+        };
+        newNodes.push(noteNode);
+        allCreatedNodesMap.set(nodeId, noteNode);
+        yTrackers.notes += nodeSize.height + globalNodeSpacingY; // Increment Y for the next note in this column
 
-        if (targetNode) {
-           let noteXPosition = SOURCES_X; 
-           let columnYTrackerRef = yTrackers.sources;
+        // If the note has links, create edges
+        if (noteData.entity_links && Array.isArray(noteData.entity_links)) {
+          noteData.entity_links.forEach((link: { linked_entity_id: number, linked_entity_type: string }) => {
+            const targetEntityType = String(link.linked_entity_type).toLowerCase();
+            // Adjust for potential pluralization in entity_type string (e.g., "npcs" vs "npc")
+            const singularEntityType = targetEntityType.endsWith('s') && targetEntityType !== 'notes' ? targetEntityType.slice(0, -1) : targetEntityType;
+            const targetNodeId = `${singularEntityType}-${link.linked_entity_id}`;
+            const targetEntityNode = allCreatedNodesMap.get(targetNodeId);
 
-           if (targetNode.position.x === SOURCES_X) { 
-             noteXPosition = UNLINKED_X; 
-             columnYTrackerRef = yTrackers.unlinked;
-           }
+            if (targetEntityNode) {
+              newEdges.push({
+                id: `edge-${nodeId}-to-${targetNodeId}`,
+                source: nodeId,
+                target: targetNodeId,
+                sourceHandle: 'right', // Assuming NoteNode has a 'right' handle
+                targetHandle: 'left',  // Assuming target nodes have a 'left' handle
+                type: 'smoothstep',
+                animated: false,
+                style: { stroke: '#F59E0B', strokeWidth: 1.5 }, // Amber color for note links
+              });
 
-          let actualY;
-          if (targetLinkedYTracker.has(targetNode.id)) {
-            actualY = targetLinkedYTracker.get(targetNode.id)!;
-          } else {
-            actualY = Math.max(targetNode.position.y, columnYTrackerRef);
-          }
-          position = { x: noteXPosition, y: actualY };
-          
-          targetLinkedYTracker.set(targetNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
-          if (noteXPosition === SOURCES_X) {
-            yTrackers.sources = actualY + nodeSize.height + globalNodeSpacingY;
-          } else { // UNLINKED_X
-            yTrackers.unlinked = actualY + nodeSize.height + globalNodeSpacingY;
-          }
-          
-          newEdges.push({
-            id: `edge-${nodeId}-${targetNode.id}`,
-            source: nodeId,
-            target: targetNode.id,
-            sourceHandle: 'right',
-            targetHandle: 'left',
+              // Potentially adjust note's Y position to be near its first linked target if not already placed optimally.
+              // This is a complex layout problem. For now, we keep initial column placement.
+              // A more sophisticated approach might involve iterative adjustments or a layout algorithm.
+
+            } else {
+              console.warn(`Sync: Note ${nodeId} links to ${targetEntityType} ${link.linked_entity_id}, but target node ${targetNodeId} not found.`);
+            }
           });
-          const noteNode: Node = {
-            id: nodeId,
-            type: 'noteNode',
-            position,
-            data: { label: noteData.title || `Note ${noteData.id}` },
-            style: { width: nodeSize.width, height: nodeSize.height },
-            zIndex: globalZIndexCounter++,
-          };
-          newNodes.push(noteNode);
-          allCreatedNodesMap.set(nodeId, noteNode);
         } else {
-          unlinkedNoteData.push(noteData); // Defer processing
+          // If a note has no links, it will be effectively "unlinked"
+          // Its position is already set in the NOTES_X column.
+          // We could move it to UNLINKED_X if preferred, but a dedicated notes column might be clearer.
         }
       });
-
+      
+      // Section 5 (Create edges from Entities ... to their linked Notes) is now largely handled by the above.
+      // The old logic relied on `linkedNoteIds` on NPCs/Locations etc. which is deprecated.
+      // We can remove or comment out this section.
+      /*
       // 5. Create edges from Entities (NPCs, Locations, Encounters) to their linked Notes
       allCreatedNodesMap.forEach(sourceNode => {
         // Check if the sourceNode is one of the types that can have linked notes
@@ -537,6 +542,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           }
         }
       });
+      */
 
       // Process deferred unlinked NPCs
       unlinkedNpcData.forEach(npcData => {
@@ -582,6 +588,9 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       });
 
       // Process deferred unlinked Notes
+      // This section is no longer needed as notes are processed above.
+      // Unlinked notes are handled by their initial placement if they have no entity_links.
+      /*
       unlinkedNoteData.forEach(noteData => {
         const nodeId = `note-${noteData.id}`;
         const nodeSize = getNodeSize('noteNode');
@@ -599,6 +608,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         newNodes.push(noteNode);
         allCreatedNodesMap.set(nodeId, noteNode);
       });
+      */
 
       // Sort nodes by their Y position then X to improve rendering order for overlapping nodes
       newNodes.sort((a, b) => {

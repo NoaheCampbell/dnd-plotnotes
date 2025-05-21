@@ -8,6 +8,7 @@ import '@reactflow/node-resizer/dist/style.css';
 
 interface NoteNodeData {
   label: string;
+  entity_links?: Array<{ linked_entity_id: number, linked_entity_type: string }>;
 }
 
 const NoteNode: React.FC<NodeProps<NoteNodeData>> = ({ data, isConnectable, selected }) => {
