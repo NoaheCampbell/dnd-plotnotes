@@ -83,6 +83,11 @@ model locations {
   campaign_id Int?
   campaigns   campaigns? @relation(fields: [campaign_id], references: [id])
   encounters  encounters[]
+
+  // Fields for location sequencing
+  next_location_id Int?      @unique // ID of the next location in a sequence
+  next_location    locations?  @relation("LocationSequence", fields: [next_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  previous_location locations? @relation("LocationSequence") // Inverse relation: this location can be a next_location for another one
 }
 
 model items {

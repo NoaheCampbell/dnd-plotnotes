@@ -9,8 +9,10 @@ export async function POST(req: Request) {
   const description = formData.get("description") as string | null
   const mapFile = formData.get("map") as File | null
   const campaign_id = formData.get("campaign_id") as string | null
+  const next_location_id_str = formData.get("next_location_id") as string | null
 
   let map_url: string | undefined = undefined
+  const next_location_id = next_location_id_str ? parseInt(next_location_id_str, 10) : null
 
   if (mapFile) {
     map_url = await uploadImageToCloudinary(mapFile)
@@ -23,6 +25,7 @@ export async function POST(req: Request) {
       description,
       map_url,
       campaign_id: campaign_id ? Number(campaign_id) : null,
+      next_location_id: next_location_id,
     },
   })
 

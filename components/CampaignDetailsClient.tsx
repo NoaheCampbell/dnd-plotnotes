@@ -394,6 +394,7 @@ export default function CampaignDetailsClient({
                       allNpcs={(section.key === 'encounters' || section.key === 'notes') ? sectionData.npcs : undefined}
                       allItems={(section.key === 'encounters' || section.key === 'notes') ? sectionData.items : undefined}
                       allEncounters={(section.key === 'notes') ? sectionData.encounters : undefined}
+                      allLocations={section.key === 'locations' ? sectionData.locations : undefined}
                     />
                     {deleteEntity[section.key] && (
                       <Dialog open={!!deleteEntity[section.key]} onOpenChange={() => setDeleteEntity(prev => ({...prev, [section.key]: null}))}>

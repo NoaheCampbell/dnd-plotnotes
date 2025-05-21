@@ -27,6 +27,7 @@ import {
 } from './custom-nodes/node-configs';
 import '@reactflow/node-resizer/dist/style.css';
 import { toast } from 'sonner';
+import { locations as Location } from '@prisma/client';
 
 interface FlowchartEditorProps {
   flowchartId?: string;
@@ -223,6 +224,11 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const allCreatedNodesMap = new Map<string, Node>(); // To quickly find any node by its ID
       let globalZIndexCounter = 1; // Initialize z-index counter
 
+      interface LocationNodeInternal extends Location {
+        children: number[];
+        inDegree: number;
+      }
+
       // Helper function to create and register a new node
       const createAndRegisterNode = (nodeId: string, type: string, position: {x: number, y: number}, data: any, style: any) => {
         const node: Node = {
@@ -239,7 +245,44 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       };
 
       // 1. Process Locations (as Targets)
-      apiData.locations?.forEach((locData: any) => {
+      // Topological sort for locations based on next_location_id
+      const locations = apiData.locations || [];
+      const locationMap = new Map<number, LocationNodeInternal>(locations.map((loc: any) => [loc.id, { ...loc, children: [], inDegree: 0 }]));
+      const orderedLocations: LocationNodeInternal[] = [];
+      
+      locations.forEach((loc: any) => {
+        if (loc.next_location_id && locationMap.has(loc.next_location_id)) {
+          locationMap.get(loc.id)!.children.push(loc.next_location_id);
+          locationMap.get(loc.next_location_id)!.inDegree++;
+        }
+      });
+
+      const queue = locations.filter((loc: any) => locationMap.get(loc.id)!.inDegree === 0);
+      
+      while (queue.length > 0) {
+        const currentLocId = queue.shift()!.id;
+        const currentLocData = locationMap.get(currentLocId)!;
+        orderedLocations.push(currentLocData); // Add the full data object
+
+        currentLocData.children.forEach((childId: any) => {
+          const childNode = locationMap.get(childId)!;
+          childNode.inDegree--;
+          if (childNode.inDegree === 0) {
+            queue.push(childNode);
+          }
+        });
+      }
+      
+      // If there are cycles, some nodes might not be added. Add them at the end.
+      if (orderedLocations.length < locations.length) {
+        locations.forEach((loc: any) => {
+          if (!orderedLocations.find(ol => ol.id === loc.id)) {
+            orderedLocations.push(locationMap.get(loc.id)!);
+          }
+        });
+      }
+      
+      orderedLocations.forEach((locData: LocationNodeInternal) => {
         const nodeId = `location-${locData.id}`;
         const nodeSize = nodeDefaultSizes.locationNode || nodeDefaultSizes.default;
         const position = { x: TARGETS_X, y: yTrackers.targets };
@@ -248,13 +291,34 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           nodeId, 
           'locationNode', 
           position, 
-          { label: locData.name || `Location ${locData.id}`, linkedNoteIds: locData.linked_note_ids || [] }, 
+          { label: locData.name || `Location ${locData.id}` }, 
           { width: nodeSize.width, height: nodeSize.height }
         );
         if (locData.name) {
           locationNodeMapByName.set(locData.name, locationNode);
         }
         yTrackers.targets += nodeSize.height + globalNodeSpacingY;
+      });
+
+      // Create vertical edges between sequenced locations
+      orderedLocations.forEach((locData: LocationNodeInternal) => {
+        if (locData.next_location_id) {
+          const sourceNodeId = `location-${locData.id}`;
+          const targetNodeId = `location-${locData.next_location_id}`;
+          if (allCreatedNodesMap.has(sourceNodeId) && allCreatedNodesMap.has(targetNodeId)) {
+            newEdges.push({
+              id: `edge-loc-seq-${locData.id}-${locData.next_location_id}`,
+              source: sourceNodeId,
+              target: targetNodeId,
+              sourceHandle: 'bottom',
+              targetHandle: 'top',
+              type: 'smoothstep',
+              animated: false,
+              style: { stroke: '#FFF', strokeWidth: 2, strokeDasharray: '5 5' }, // Dashed white line
+              zIndex: 0, // Ensure it's behind nodes
+            });
+          }
+        }
       });
 
       // Helper to get node size or default

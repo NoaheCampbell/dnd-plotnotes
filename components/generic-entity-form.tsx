@@ -21,6 +21,7 @@ interface GenericEntityFormProps {
   allNpcs?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
   allItems?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
   allEncounters?: Array<{ id: any; title: string; campaign_id?: any; [key: string]: any; }>;
+  allLocations?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
 }
 
 export default function GenericEntityForm({ 
@@ -34,6 +35,7 @@ export default function GenericEntityForm({
   allNpcs,
   allItems,
   allEncounters,
+  allLocations,
 }: GenericEntityFormProps) {
   const formElementRef = useRef<HTMLFormElement>(null);
   const [formDomIsReady, setFormDomIsReady] = useState(false);
@@ -57,6 +59,9 @@ export default function GenericEntityForm({
   const [linkEntityTypeToAdd, setLinkEntityTypeToAdd] = useState<string>('');
   const [linkEntityIdToAdd, setLinkEntityIdToAdd] = useState<string | number>('');
   const [availableEntitiesForNewLink, setAvailableEntitiesForNewLink] = useState<any[]>([]);
+
+  // State for Next Location selection
+  const [selectedNextLocationId, setSelectedNextLocationId] = useState<string | number | null>(null);
 
   const getEntityDisplayName = useCallback((entityType: string, entityId: number | string): string => {
     let list: any[] = [];
@@ -100,6 +105,8 @@ export default function GenericEntityForm({
       } else {
         setCurrentLinks([]);
       }
+    } else if (config.api === '/api/locations' && entity && open) {
+      setSelectedNextLocationId(entity.next_location_id || null);
     }
 
     if (!open) { // Reset all relevant states when dialog closes
@@ -115,6 +122,7 @@ export default function GenericEntityForm({
       setLinkEntityTypeToAdd('');
       setLinkEntityIdToAdd('');
       setAvailableEntitiesForNewLink([]);
+      setSelectedNextLocationId(null); // Reset next location ID
     }
   }, [entity, open, config.api, getEntityDisplayName]); // Added getEntityDisplayName dependency
 
@@ -223,7 +231,10 @@ export default function GenericEntityForm({
         if (element || field.type === 'multiselect-npc') {
           const valueToSet = entity[field.name];
           
-          if (config.label === 'Encounters' && field.name === 'campaign_location_id') {
+          if (config.api === '/api/locations' && field.name === 'next_location_id') {
+            // This field is handled by specific state (selectedNextLocationId), not direct element manipulation here.
+            // The initial value is set in the other useEffect.
+          } else if (config.label === 'Encounters' && field.name === 'campaign_location_id') {
             if (element instanceof HTMLSelectElement) element.value = valueToSet || '';
             setSelectedEncounterLocationId(valueToSet || '');
           } else if (field.type === 'multiselect-npc' && config.label === 'Encounters') {
@@ -266,25 +277,33 @@ export default function GenericEntityForm({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
+    const formData = new FormData(formElementRef.current!);
     
-    if (config.api === '/api/notes') {
-      const entityLinksForApi = currentLinks.map(link => ({
-        linked_entity_id: link.linked_entity_id,
-        linked_entity_type: link.linked_entity_type
+    // Handle image upload if imageField is present
+    // ... existing code ...
+    // Handle specific entity type data processing
+    if (config.api === '/api/encounters') {
+      const npcIds = Array.from(selectedNpcIdsForForm);
+      formData.append('npc_ids_json_string', JSON.stringify(npcIds));
+    } else if (config.api === '/api/notes') {
+      const linksToSubmit = currentLinks.map(link => ({
+        linked_entity_id: Number(link.linked_entity_id),
+        linked_entity_type: link.linked_entity_type,
       }));
-      formData.set('entity_links_json_string', JSON.stringify(entityLinksForApi));
+      formData.append('entity_links_json_string', JSON.stringify(linksToSubmit));
+    } else if (config.api === '/api/locations') {
+      if (selectedNextLocationId !== null && selectedNextLocationId !== undefined && String(selectedNextLocationId).trim() !== "") {
+        formData.append('next_location_id', String(selectedNextLocationId));
+      } else {
+        // Ensure that if it's meant to be null, it's explicitly sent or handled by backend to be set to null
+        // Depending on API, might need to send empty string or specific null marker, or omit
+         console.log("Next location ID is null or empty, not appending to formData for explicit nullification or omission.");
+        // If your API expects 'next_location_id' to be absent for null, then do nothing.
+        // If your API expects an empty string or 'null' string for nullification, append accordingly:
+        // formData.append('next_location_id', ''); // or 'null' if API handles it that way
+      }
     }
-    
-    // Handle npc_ids for Encounters from selectedNpcIdsForForm state
-    if (config.label === 'Encounters') {
-      formData.delete('npc_ids'); 
-      selectedNpcIdsForForm.forEach(npcId => {
-        formData.append('npc_ids', npcId);
-      });
-    }
-    
+
     const isEdit = entity && entity.id;
     const url = isEdit ? `${config.api}/${entity.id}` : config.api;
     const method = isEdit ? "PATCH" : "POST";
@@ -660,6 +679,64 @@ export default function GenericEntityForm({
               </div>
             )}
             {/* END OF MOVED SECTION */}
+
+            {/* START: Next Location Selection for Locations */}
+            {config.api === '/api/locations' && allLocations && (
+              <div className="space-y-2 border-t border-amber-800/20 dark:border-amber-600/30 pt-4 mt-4">
+                 <h4 className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">Link Next Location</h4>
+                <Label htmlFor="next_location_id" className="text-amber-800 dark:text-amber-300">Next Location in Sequence</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={!!selectedNextLocationId}
+                      className="w-full justify-between text-amber-900 dark:text-amber-200 border-amber-400 dark:border-amber-600 hover:bg-amber-50 dark:hover:bg-stone-700"
+                    >
+                      {selectedNextLocationId
+                        ? allLocations.find(loc => String(loc.id) === String(selectedNextLocationId))?.name || "Select location..."
+                        : "Select location..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0 bg-parchment-light dark:bg-stone-800 border-amber-400 dark:border-amber-600">
+                    <Command>
+                      <CommandInput placeholder="Search location..." />
+                      <CommandList>
+                        <CommandEmpty>No location found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                              key="clear-next-location"
+                              value="clear"
+                              onSelect={() => {
+                                  setSelectedNextLocationId(null);
+                              }}
+                          >
+                              <Check className={cn("mr-2 h-4 w-4", !selectedNextLocationId ? "opacity-100" : "opacity-0")} />
+                              Clear Selection (None)
+                          </CommandItem>
+                          {allLocations
+                            .filter(loc => !entity || String(loc.id) !== String(entity.id)) // Prevent self-linking
+                            .map((loc) => (
+                            <CommandItem
+                              key={loc.id}
+                              value={String(loc.id)}
+                              onSelect={(currentValue) => {
+                                setSelectedNextLocationId(currentValue === String(selectedNextLocationId) ? null : currentValue);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", String(selectedNextLocationId) === String(loc.id) ? "opacity-100" : "opacity-0")} />
+                              {loc.name}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+            {/* END: Next Location Selection for Locations */}
           </div>
 
           <DialogFooter className="mt-4 pt-4 border-t border-amber-800/20">
