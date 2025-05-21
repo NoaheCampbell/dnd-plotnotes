@@ -146,7 +146,6 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     // --- Add new rules for NPC <-> NPC ---
     // Rule 13: NPC to NPC (Horizontal right-to-left)
     if (sourceType === 'npcNode' && targetType === 'npcNode' && sourceHandle === 'right' && targetHandle === 'left') {
-       ("Allowing: NPC (right) -> NPC (left)");
       return true;
     }
     // Rule 14: NPC to NPC (Vertical bottom-to-top) - Covered by general segway rule
@@ -158,16 +157,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     // --- Add new rules for Encounter <-> Note ---
     // Rule 15: Encounter to Note (Side connection)
     if (sourceType === 'encounterNode' && targetType === 'noteNode' && sourceHandle === 'right' && targetHandle === 'left') {
-       ("Allowing: Encounter (right) -> Note (left)");
       return true;
     }
     // Rule 16: Note to Encounter (Side connection)
     if (sourceType === 'noteNode' && targetType === 'encounterNode' && sourceHandle === 'right' && targetHandle === 'left') {
-       ("Allowing: Note (right) -> Encounter (left)");
       return true;
     }
 
-     (`Disallowing connection: ${sourceType} (${sourceHandle}) -> ${targetType} (${targetHandle})`);
     toast.error(`Invalid connection: ${sourceType} (${sourceHandle || 'any'}) cannot connect to ${targetType} (${targetHandle || 'any'}) using these handles.`);
     return false;
   }, [nodes]);
@@ -237,7 +233,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           id: nodeId,
           type: 'locationNode',
           position,
-          data: { label: locData.name || `Location ${locData.id}` },
+          data: { label: locData.name || `Location ${locData.id}`, linkedNoteIds: locData.linked_note_ids || [] },
           style: { width: nodeSize.width, height: nodeSize.height },
           zIndex: globalZIndexCounter++,
         };
@@ -268,8 +264,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         let targetLocationNode: Node | undefined = undefined;
         // The API provides npcData.locationName (from npc.location_name in DB)
         // This field might contain an ID (as a string/number) or a name string.
-         (`Flowchart Sync: Processing NPC - ID: ${npcData.id}, Name: ${npcData.name}, API's locationName: ${npcData.locationName}`);
-
+        
         if (npcData.locationName !== null && npcData.locationName !== undefined) {
           const locNameStr = String(npcData.locationName);
           // Attempt 1: Treat locationName as an ID string
@@ -296,8 +291,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           
           targetLinkedYTracker.set(targetLocationNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
           // Log for NPC setting targetLinkedYTracker
-          if (targetLocationNode.data.label === 'dsfsdaf') { // Specific log for the problematic location
-             (`NPC (${npcData.name}) linking to ${targetLocationNode.data.label} (ID: ${targetLocationNode.id}): actualY = ${actualY}, Set targetLinkedYTracker to: ${actualY + nodeSize.height + linkedNodeSpacingY}`);
+          if (targetLocationNode.data.label === 'dsfsdaf') {
+            
           }
           yTrackers.sources = Math.max(yTrackers.sources, actualY + nodeSize.height + globalNodeSpacingY);
           
@@ -312,7 +307,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             id: nodeId,
             type: 'npcNode',
             position,
-            data: { label: npcData.name || `NPC ${npcData.id}` },
+            data: { label: npcData.name || `NPC ${npcData.id}`, linkedNoteIds: npcData.linked_note_ids || [] },
             style: { width: nodeSize.width, height: nodeSize.height },
             zIndex: globalZIndexCounter++,
           };
@@ -337,9 +332,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         // Try to link Encounter to Location
         let locationNodeForEncounter: Node | undefined = undefined;
 
-         (`Flowchart Sync: Processing Encounter - ID: ${encData.id}, Title: ${encData.title}`);
-         (`  Attempting to link using location_id: '${encData.location_id}', location_name: '${encData.location}'`);
-
+        
+        
         // Primary linking mechanism: Use location_id (foreign key from encounter to location)
         if (encData.location_id) {
           locationNodeForEncounter = allCreatedNodesMap.get(`location-${encData.location_id}`);
@@ -365,12 +359,9 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         
         if (locationNodeForEncounter) {
           // Log for Encounter checking targetLinkedYTracker
-          if (locationNodeForEncounter.data.label === 'dsfsdaf') { // Specific log
-            const trackerHasKey = targetLinkedYTracker.has(locationNodeForEncounter.id);
-            const trackerValue = trackerHasKey ? targetLinkedYTracker.get(locationNodeForEncounter.id) : 'N/A';
-             (`Encounter (${encData.title}) linking to ${locationNodeForEncounter.data.label} (ID: ${locationNodeForEncounter.id}): targetLinkedYTracker.has() = ${trackerHasKey}, .get() = ${trackerValue}`);
-          }
-
+          const trackerHasKey = targetLinkedYTracker.has(locationNodeForEncounter.id);
+          const trackerValue = trackerHasKey ? targetLinkedYTracker.get(locationNodeForEncounter.id) : 'N/A';
+          
           xPos = SOURCES_X; // Position as a source to the location
           const targetNodeId = locationNodeForEncounter.id;
 
@@ -383,7 +374,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
           // Log final yPos for problematic encounter/location
           if (locationNodeForEncounter.data.label === 'dsfsdaf') {
-             (`Encounter (${encData.title}) final yPos = ${yPos}`);
+            
           }
 
           targetLinkedYTracker.set(targetNodeId, yPos + getNodeSize('encounterNode').height + linkedNodeSpacingY);
@@ -400,31 +391,20 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             style: { stroke: '#A1A1AA', strokeWidth: 2 }, // Zinc color for associations
           });
         } else {
-           (`  Encounter ${encData.id} (${encData.title}) WILL NOT BE LINKED. No location found.`);
+          
           // If still not linked, update yTracker for the UNLINKED_X column before placing the node
           yPos = yTrackers.unlinked; // Use current unlinked Y
           yTrackers.unlinked += getNodeSize('encounterNode').height + globalNodeSpacingY; // Increment for next unlinked
         }
-
+        
         const encounterNode: Node = {
           id: currentEncounterNodeId,
           type: 'encounterNode',
-          data: { 
-            label: encData.title || 'Unnamed Encounter', 
-            entityData: encData, 
-            onLabelChange: (nodeId: string, newLabel: string) => {
-              setNodes((nds) =>
-                nds.map((node) => {
-                  if (node.id === nodeId) {
-                    // Preserve other data properties while updating label
-                    return { ...node, data: { ...node.data, label: newLabel } };
-                  }
-                  return node;
-                })
-              );
-            }
-          },
           position: { x: xPos, y: yPos },
+          data: { 
+            label: encData.title || `Encounter ${encData.id}`, 
+            linkedNoteIds: encData.linked_note_ids || [] 
+          },
           style: getNodeSize('encounterNode'),
           zIndex: globalZIndexCounter++,
         };
@@ -522,6 +502,42 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
       });
 
+      // 5. Create edges from Entities (NPCs, Locations, Encounters) to their linked Notes
+      allCreatedNodesMap.forEach(sourceNode => {
+        // Check if the sourceNode is one of the types that can have linked notes
+        if (sourceNode.type === 'npcNode' || sourceNode.type === 'locationNode' || sourceNode.type === 'encounterNode') {
+          if (sourceNode.data && sourceNode.data.linkedNoteIds && Array.isArray(sourceNode.data.linkedNoteIds)) {
+            sourceNode.data.linkedNoteIds.forEach((rawNoteId: string | number) => {
+              const targetNoteNodeId = `note-${rawNoteId}`;
+              const targetNoteNode = allCreatedNodesMap.get(targetNoteNodeId);
+
+              if (targetNoteNode) {
+                const edgeExists = newEdges.some(
+                  edge => (edge.source === sourceNode.id && edge.target === targetNoteNodeId) ||
+                          (edge.source === targetNoteNodeId && edge.target === sourceNode.id)
+                );
+
+                if (!edgeExists) {
+                  newEdges.push({
+                    id: `edge-assoc-${sourceNode.id}-to-${targetNoteNodeId}`,
+                    source: sourceNode.id,
+                    target: targetNoteNodeId,
+                    sourceHandle: 'right',
+                    targetHandle: 'left',
+                    type: 'smoothstep',
+                    animated: false,
+                    style: { stroke: '#6B7280', strokeWidth: 1.5, strokeDasharray: '4,4' }, // Gray-600, dashed
+                  });
+                }
+              } 
+              // else {
+              //   console.warn(`Sync: Entity ${sourceNode.id} lists note ID ${rawNoteId}, but note node ${targetNoteNodeId} not found.`);
+              // }
+            });
+          }
+        }
+      });
+
       // Process deferred unlinked NPCs
       unlinkedNpcData.forEach(npcData => {
         const nodeId = `npc-${npcData.id}`;
@@ -533,7 +549,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           id: nodeId,
           type: 'npcNode',
           position,
-          data: { label: npcData.name || `NPC ${npcData.id}` },
+          data: { label: npcData.name || `NPC ${npcData.id}`, linkedNoteIds: npcData.linked_note_ids || [] },
           style: { width: nodeSize.width, height: nodeSize.height },
           zIndex: globalZIndexCounter++,
         };
@@ -543,16 +559,21 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
       // Process deferred unlinked Encounters
       unlinkedEncounterData.forEach(encData => {
-        const nodeId = `encounter-${encData.id}`;
+        const nodeId = `encounter-${encData.id}`; 
         const nodeSize = getNodeSize('encounterNode');
-        const position = { x: UNLINKED_X, y: yTrackers.unlinked };
+        
+        const unlinkedNodePosition = { x: UNLINKED_X, y: yTrackers.unlinked };
+        
         yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
         
         const encounterNode: Node = {
-          id: nodeId,
+          id: nodeId, 
           type: 'encounterNode',
-          position,
-          data: { label: encData.title || `Encounter ${encData.id}` },
+          position: unlinkedNodePosition, 
+          data: { 
+            label: encData.title || `Encounter ${encData.id}`, 
+            linkedNoteIds: encData.linked_note_ids || [] 
+          },
           style: { width: nodeSize.width, height: nodeSize.height },
           zIndex: globalZIndexCounter++,
         };
@@ -615,7 +636,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   useEffect(() => {
     if (syncTrigger && syncTrigger > 0 && campaignId) {
       // Check campaignId to ensure it's available before syncing
-       ("Flowchart sync triggered by parent update.");
+      
       syncFlowchartWithCampaignData();
     }
   }, [syncTrigger, campaignId]); // Add campaignId to dependencies

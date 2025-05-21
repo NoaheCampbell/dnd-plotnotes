@@ -11,6 +11,8 @@ cloudinary.config({
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const formData = await req.formData();
+    const routeParamsId = params.id;
+
     const name = formData.get("name") as string;
     const race = formData.get("race") as string | null;
     const class_ = formData.get("class") as string | null;
@@ -49,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     const npc = await prisma.npcs.update({
-      where: { id: Number(params.id) },
+      where: { id: Number(routeParamsId) },
       data: {
         name,
         race,
@@ -81,7 +83,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
   try {
-    const id = Number(params.id);
+    const routeParamsId = params.id;
+    const id = Number(routeParamsId);
     if (isNaN(id)) {
       return NextResponse.json({ error: "Invalid NPC ID" }, { status: 400 });
     }

@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // GET /api/campaigns/[id]/flowcharts - List flowcharts for a campaign
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const params = await context.params;
     const campaignId = parseInt(params.id);
     if (isNaN(campaignId)) {
       return NextResponse.json({ error: 'Invalid campaign ID' }, { status: 400 });
@@ -26,9 +27,10 @@ export async function GET(
 // POST /api/campaigns/[id]/flowcharts - Create a new flowchart for a campaign
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const params = await context.params;
     const campaignId = parseInt(params.id);
     if (isNaN(campaignId)) {
       return NextResponse.json({ error: 'Invalid campaign ID' }, { status: 400 });

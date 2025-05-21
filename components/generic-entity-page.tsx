@@ -50,7 +50,17 @@ export default function GenericEntityPage({ entity, config }: { entity: string; 
   }, [config.api, entity]);
 
   const handleCreated = (newItem: any) => {
-    setData((prev) => [...prev, newItem]);
+    setData((prevData) => {
+      const isUpdate = prevData.some(item => item.id === newItem.id);
+      if (isUpdate) {
+        return prevData.map(item => (item.id === newItem.id ? newItem : item));
+      } else {
+        return [...prevData, newItem];
+      }
+    });
+    if (editEntity && editEntity.id === newItem.id) {
+        setEditEntity(null);
+    }
   };
 
   const searchField = config.fields.find((f: any) => f.type === "text");

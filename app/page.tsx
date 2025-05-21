@@ -29,6 +29,13 @@ export default async function Dashboard({ searchParams }: PageProps) {
         take: 3
       },
       notes: {
+        select: {
+          id: true,
+          title: true,
+          // Add other necessary note fields here, e.g., content, created_at
+          // For a dashboard preview, ID and title might be enough.
+          // Avoid old fields like linked_entity_type.
+        },
         take: 3,
         orderBy: { created_at: 'desc' }
       }

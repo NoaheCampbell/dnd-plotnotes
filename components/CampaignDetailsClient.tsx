@@ -191,9 +191,12 @@ export default function CampaignDetailsClient({
           [sectionKey]: [...currentSectionItems, updatedEntity],
         };
       } else {
+        const updatedItems = currentSectionItems.map(item => 
+          item.id === updatedEntity.id ? updatedEntity : item
+        );
         return {
           ...prevSectionData,
-          [sectionKey]: currentSectionItems.map(item => item.id === updatedEntity.id ? updatedEntity : item),
+          [sectionKey]: updatedItems,
         };
       }
     });
@@ -352,7 +355,10 @@ export default function CampaignDetailsClient({
                       }}
                       config={getFullEntityConfig(section.config, `/${section.key}`, campaigns)}
                       availableLocations={(section.key === 'encounters' || section.key === 'npcs' || section.key === 'notes') ? sectionData.locations : undefined}
-                      onCreated={newEntity => handleEntityUpdateSuccess(section.key, newEntity, !(currentEditEntity && currentEditEntity.id))}
+                      onCreated={newEntity => {
+                        const isActuallyNew = !(currentEditEntity && currentEditEntity.id);
+                        handleEntityUpdateSuccess(section.key, newEntity, isActuallyNew);
+                      }}
                       campaigns={campaigns}
                       entity={currentEditEntity || undefined}
                       allNpcs={(section.key === 'encounters' || section.key === 'notes') ? sectionData.npcs : undefined}
@@ -446,7 +452,7 @@ export default function CampaignDetailsClient({
                 initialName={editingFlowchart?.name}
                 onSaveSuccess={handleFlowchartCreatedOrUpdated}
                 syncTrigger={flowchartSyncTrigger}
-                // key={editingFlowchart?.id || 'new'} // To force re-mount if needed, or manage state reset internally
+                key={editingFlowchart?.id || 'new-flowchart-' + Date.now()} // Ensure unique key
               />
             </div>
             {/* Footer can be added if explicit save/close from dialog is needed, but editor has its own save */}

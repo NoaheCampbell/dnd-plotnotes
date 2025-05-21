@@ -43,7 +43,7 @@ export default function GenericEntityForm({
   // State for dynamic entity linking (for Notes)
   const [selectedEntityType, setSelectedEntityType] = useState<string>('');
   const [availableEntitiesForLink, setAvailableEntitiesForLink] = useState<any[]>([]);
-  const [selectedLinkedEntityId, setSelectedLinkedEntityId] = useState<string | number>(''); // Store as string to match select value, parse on submit
+  const [selectedLinkedEntityId, setSelectedLinkedEntityId] = useState<string | number>('');
   const [isLoadingLinkedEntities, setIsLoadingLinkedEntities] = useState<boolean>(false);
 
   // State for Encounter NPC selection
@@ -52,26 +52,91 @@ export default function GenericEntityForm({
   const [npcSelectPopoverOpen, setNpcSelectPopoverOpen] = useState(false);
   const [selectedNpcIdsForForm, setSelectedNpcIdsForForm] = useState<Set<string>>(new Set());
 
-  // Effect to initialize form state for editing a Note with a linked entity
+  // State for the new polymorphic multi-link UI for Notes
+  const [currentLinks, setCurrentLinks] = useState<Array<{ linked_entity_id: number; linked_entity_type: string; display_name?: string; }>>([]);
+  const [linkEntityTypeToAdd, setLinkEntityTypeToAdd] = useState<string>('');
+  const [linkEntityIdToAdd, setLinkEntityIdToAdd] = useState<string | number>('');
+  const [availableEntitiesForNewLink, setAvailableEntitiesForNewLink] = useState<any[]>([]);
+
+  const getEntityDisplayName = useCallback((entityType: string, entityId: number | string): string => {
+    let list: any[] = [];
+    let nameKey = 'name';
+    let idKey = 'id';
+
+    switch (entityType) {
+      case 'campaign': 
+        list = campaigns || []; 
+        nameKey = 'title';
+        break;
+      case 'location': 
+        list = availableLocations || []; 
+        break;
+      case 'npc': 
+        list = allNpcs || []; 
+        break;
+      case 'item': 
+        list = allItems || []; 
+        break;
+      case 'encounter': 
+        list = allEncounters || []; 
+        nameKey = 'title'; 
+        break;
+      default: return `Unknown Type: ${entityType}`;
+    }
+    const foundEntity = list.find(e => String(e[idKey]) === String(entityId));
+    return foundEntity ? foundEntity[nameKey] : `ID: ${entityId} (Not found)`;
+  }, [campaigns, availableLocations, allNpcs, allItems, allEncounters]);
+
+  // Effect to initialize form state for editing
   useEffect(() => {
-    if (config.label === 'Notes' && entity && open) {
-      const initialEntityType = entity.linked_entity_type || '';
-      setSelectedEntityType(initialEntityType);
-      setSelectedLinkedEntityId(entity.linked_entity_id || '');
-      // The actual list for availableEntitiesForLink will be populated by the next effect
-      // based on initialEntityType
-    } else if (!open) {
-      // Reset state when dialog closes
-      setSelectedEntityType('');
-      setAvailableEntitiesForLink([]);
-      setSelectedLinkedEntityId('');
-      // Reset Encounter specific state too
+    if (config.api === '/api/notes' && entity && open) {
+      if (Array.isArray(entity.entity_links)) {
+        const initialLinks = entity.entity_links.map((link: any) => ({
+          linked_entity_id: Number(link.linked_entity_id),
+          linked_entity_type: link.linked_entity_type,
+          display_name: getEntityDisplayName(link.linked_entity_type, Number(link.linked_entity_id))
+        }));
+        setCurrentLinks(initialLinks);
+      } else {
+        setCurrentLinks([]);
+      }
+    }
+
+    if (!open) { // Reset all relevant states when dialog closes
+      setSelectedEntityType(''); 
+      setAvailableEntitiesForLink([]); 
+      setSelectedLinkedEntityId(''); 
       setSelectedEncounterLocationId('');
       setFilteredNpcsForEncounter([]);
       setNpcSelectPopoverOpen(false);
       setSelectedNpcIdsForForm(new Set());
+      // Reset new note link states
+      setCurrentLinks([]);
+      setLinkEntityTypeToAdd('');
+      setLinkEntityIdToAdd('');
+      setAvailableEntitiesForNewLink([]);
     }
-  }, [entity, open, config.label]);
+  }, [entity, open, config.api, getEntityDisplayName]); // Added getEntityDisplayName dependency
+
+  // useEffect to populate availableEntitiesForNewLink based on linkEntityTypeToAdd
+  useEffect(() => {
+    if (!linkEntityTypeToAdd) {
+      setAvailableEntitiesForNewLink([]);
+      setLinkEntityIdToAdd(''); // Clear specific entity if type is cleared
+      return;
+    }
+    let entities: any[] = [];
+    switch (linkEntityTypeToAdd) {
+      case 'campaign': entities = campaigns || []; break;
+      case 'location': entities = availableLocations || []; break;
+      case 'npc': entities = allNpcs || []; break;
+      case 'item': entities = allItems || []; break;
+      case 'encounter': entities = allEncounters || []; break;
+      default: entities = []; break;
+    }
+    setAvailableEntitiesForNewLink(entities);
+    // Don't clear linkEntityIdToAdd here, allow it to persist if user is just re-opening dropdown
+  }, [linkEntityTypeToAdd, campaigns, availableLocations, allNpcs, allItems, allEncounters]);
 
   // Effect to update the list of available entities when entity type changes or on initial load for edit
   useEffect(() => {
@@ -204,25 +269,16 @@ export default function GenericEntityForm({
     const form = e.currentTarget;
     const formData = new FormData(form);
     
-    // If this is a Note and an entity is selected, add its ID and Name to formData
-    if (config.label === 'Notes' && selectedEntityType && selectedLinkedEntityId) {
-      formData.set('linked_entity_id', String(selectedLinkedEntityId));
-      const selectedEntity = availableEntitiesForLink.find(e => String(e.id) === String(selectedLinkedEntityId));
-      if (selectedEntity) {
-        formData.set('linked_entity_name', selectedEntity.name || selectedEntity.title || '');
-      } else {
-        formData.set('linked_entity_name', ''); // Should not happen if selectedLinkedEntityId is valid
-      }
-    } else if (config.label === 'Notes') {
-      // If it's a note but no entity type is selected or no specific entity is selected, ensure these fields are empty or not set
-      formData.delete('linked_entity_id');
-      formData.delete('linked_entity_name');
-      // linked_entity_type will be set to "" if "None" was selected, which is fine.
+    if (config.api === '/api/notes') {
+      const entityLinksForApi = currentLinks.map(link => ({
+        linked_entity_id: link.linked_entity_id,
+        linked_entity_type: link.linked_entity_type
+      }));
+      formData.set('entity_links_json_string', JSON.stringify(entityLinksForApi));
     }
     
     // Handle npc_ids for Encounters from selectedNpcIdsForForm state
     if (config.label === 'Encounters') {
-      // Clear any existing npc_ids from FormData (in case there was a native element with that name)
       formData.delete('npc_ids'); 
       selectedNpcIdsForForm.forEach(npcId => {
         formData.append('npc_ids', npcId);
@@ -232,22 +288,70 @@ export default function GenericEntityForm({
     const isEdit = entity && entity.id;
     const url = isEdit ? `${config.api}/${entity.id}` : config.api;
     const method = isEdit ? "PATCH" : "POST";
-    const res = await fetch(
-      url,
-      {
-        method,
-        body: formData,
-      }
-    );
+
+    try {
+      const res = await fetch(
+        url,
+        {
+          method,
+          body: formData,
+        }
+      );
     
-    if (res.ok) {
-      setOpen(false);
-      form.reset();
-      const newItem = await res.json();
-      onCreated(newItem);
-    } else {
-      alert(`Failed to ${entity ? 'update' : 'add'} ${config.label.slice(0, -1)}`);
+      if (res.ok) {
+        setOpen(false);
+        const newItem = await res.json();
+        if (typeof onCreated === 'function') {
+          onCreated(newItem);
+        }
+      } else {
+        const errorData = await res.text();
+        console.error("GenericEntityForm: API call failed.", errorData);
+        alert(`Failed to ${entity ? 'update' : 'add'} ${config.label.slice(0, -1)}. Error: ${errorData}`);
+      }
+    } catch (error) {
+      console.error('GenericEntityForm: Error during fetch operation:', error);
+      alert(`An unexpected error occurred. See console for details.`);
     }
+  };
+
+  const handleAddLink = () => {
+    if (!linkEntityTypeToAdd || !linkEntityIdToAdd) {
+      // Optionally, show an error message to the user
+      console.warn("Please select an entity type and an entity to link.");
+      return;
+    }
+
+    const numericEntityId = Number(linkEntityIdToAdd);
+    const alreadyLinked = currentLinks.some(
+      link => link.linked_entity_id === numericEntityId && link.linked_entity_type === linkEntityTypeToAdd
+    );
+
+    if (alreadyLinked) {
+      // Optionally, show an error message
+      console.warn("This entity is already linked.");
+      return;
+    }
+
+    const displayName = getEntityDisplayName(linkEntityTypeToAdd, numericEntityId);
+
+    setCurrentLinks(prevLinks => [
+      ...prevLinks,
+      {
+        linked_entity_id: numericEntityId,
+        linked_entity_type: linkEntityTypeToAdd,
+        display_name: displayName
+      }
+    ]);
+
+    // Reset selection
+    setLinkEntityTypeToAdd('');
+    setLinkEntityIdToAdd('');
+    setAvailableEntitiesForNewLink([]);
+  };
+
+  const handleRemoveLink = (indexToRemove: number) => {
+    setCurrentLinks(prevLinks => prevLinks.filter((_, index) => index !== indexToRemove));
   };
 
   const groupedFields = fields.reduce((acc: any[], field: any) => {
@@ -323,18 +427,11 @@ export default function GenericEntityForm({
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
                       )}
-                      {field.type === "select" && (
+                      {field.type === "select" && field.name !== 'linked_entity_type' && (
                         <select
                           id={field.name}
                           name={field.name}
                           required={field.required}
-                          value={field.name === 'linked_entity_type' && config.label === 'Notes' ? selectedEntityType : undefined}
-                          onChange={e => {
-                            if (field.name === 'linked_entity_type' && config.label === 'Notes') {
-                              setSelectedEntityType(e.target.value);
-                              setSelectedLinkedEntityId('');
-                            }
-                          }}
                           className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         >
                           <option value="">Select {field.label}</option>
@@ -482,40 +579,89 @@ export default function GenericEntityForm({
                           className="bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
                         />
                       ) : null }
-                      {config.label === 'Notes' && field.name === 'linked_entity_type' && selectedEntityType && !isLoadingLinkedEntities && availableEntitiesForLink.length > 0 && (
-                        <div className="space-y-2 mt-2 w-full">
-                          <Label htmlFor="linked_entity_id" className="text-amber-900 dark:text-amber-200">
-                            Link To {selectedEntityType.charAt(0).toUpperCase() + selectedEntityType.slice(1)}
-                          </Label>
-                          <select
-                            id="linked_entity_id"
-                            name="linked_entity_id_select"
-                            value={selectedLinkedEntityId}
-                            onChange={e => setSelectedLinkedEntityId(e.target.value)}
-                            required
-                            className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
-                          >
-                            <option value="">Select {selectedEntityType.charAt(0).toUpperCase() + selectedEntityType.slice(1)}</option>
-                            {availableEntitiesForLink.map(item => (
-                              <option key={item.id} value={item.id}>
-                                {item.name || item.title}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      {config.label === 'Notes' && field.name === 'linked_entity_type' && selectedEntityType && isLoadingLinkedEntities && (
-                        <p className="mt-2 text-amber-700 dark:text-amber-400">Loading entities...</p>
-                      )}
-                      {config.label === 'Notes' && field.name === 'linked_entity_type' && selectedEntityType && !isLoadingLinkedEntities && availableEntitiesForLink.length === 0 && (
-                        <p className="mt-2 text-amber-700 dark:text-amber-400">No {selectedEntityType}s available to link.</p>
-                      )}
                     </div>
                   );
                 })}
               </div>
             ))}
           </div>
+
+          {/* UI for Polymorphic Multi-Link for Notes */}
+          {config.api === '/api/notes' && (
+            <div className="space-y-4 border-t border-amber-800/20 dark:border-amber-700/30 pt-6 mt-6">
+              <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-3">Linked Entities</h3>
+              
+              {/* Form to add a new link */}
+              <div className="flex items-end gap-3 p-3 border border-amber-800/20 dark:border-amber-700/40 rounded-lg bg-amber-50/30 dark:bg-stone-700/20 shadow-sm">
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="link-entity-type" className="text-xs font-medium text-amber-800 dark:text-amber-300">Entity Type</Label>
+                  <select 
+                    id="link-entity-type"
+                    value={linkEntityTypeToAdd}
+                    onChange={e => setLinkEntityTypeToAdd(e.target.value)}
+                    className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200"
+                  >
+                    <option value="">Select Type...</option>
+                    <option value="campaign">Campaign</option>
+                    <option value="npc">NPC</option>
+                    <option value="location">Location</option>
+                    <option value="item">Item</option>
+                    <option value="encounter">Encounter</option>
+                    {/* Add other linkable entity types here */}
+                  </select>
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label htmlFor="link-entity-id" className="text-sm text-amber-800 dark:text-amber-300">Specific Entity</Label>
+                  <select 
+                    id="link-entity-id"
+                    value={linkEntityIdToAdd}
+                    onChange={e => setLinkEntityIdToAdd(e.target.value)}
+                    disabled={!linkEntityTypeToAdd || availableEntitiesForNewLink.length === 0}
+                    className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 disabled:opacity-50"
+                  >
+                    <option value="">Select {linkEntityTypeToAdd ? linkEntityTypeToAdd.charAt(0).toUpperCase() + linkEntityTypeToAdd.slice(1) : 'Entity'}...</option>
+                    {availableEntitiesForNewLink.map(entity => (
+                      <option key={entity.id} value={entity.id}>{entity.name || entity.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button 
+                  type="button" 
+                  onClick={handleAddLink}
+                  disabled={!linkEntityTypeToAdd || !linkEntityIdToAdd}
+                  className="h-9 bg-amber-700 hover:bg-amber-600 text-amber-100"
+                >
+                  Add Link
+                </Button>
+              </div>
+
+              {/* List of current links */}
+              {currentLinks.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-amber-800/10 dark:border-amber-700/20">
+                  <h4 className="text-md font-medium text-amber-800 dark:text-amber-300 mb-2">Currently Linked:</h4>
+                  <div className="space-y-2">
+                    {currentLinks.map((link, index) => (
+                      <div key={`${link.linked_entity_type}-${link.linked_entity_id}-${index}`} className="flex items-center justify-between p-2.5 border border-amber-800/10 dark:border-amber-700/30 rounded-md bg-amber-50/40 dark:bg-stone-700/30 shadow-sm">
+                        <span className="text-sm text-amber-900 dark:text-amber-200">
+                          {link.display_name || `(${link.linked_entity_type} ID: ${link.linked_entity_id})`}
+                        </span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleRemoveLink(index)}
+                          className="text-red-600 hover:text-red-500 dark:text-red-500 dark:hover:text-red-400 px-1 py-0 h-auto"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <DialogFooter className="mt-4 pt-4 border-t border-amber-800/20">
             <DialogClose asChild>
               <Button variant="outline" className="text-amber-900 dark:text-amber-200 border-amber-800/30">Cancel</Button>

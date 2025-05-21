@@ -36,9 +36,7 @@ model notes {
   created_at         DateTime?  @default(now()) @db.Timestamp(6)
   campaigns          campaigns? @relation(fields: [campaign_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  linked_entity_type String?    // E.g., "npc", "location", "encounter", "item", "campaign"
-  linked_entity_id   Int?       // ID of the linked entity
-  linked_entity_name String?    // Name of the linked entity (for display/fallback)
+  entity_links       EntityNoteLink[]
 }
 
 model npcs {
@@ -137,4 +135,18 @@ model Flowchart {
   updatedAt   DateTime @updatedAt
 
   @@index([campaignId])
+}
+
+model EntityNoteLink {
+  note_id            Int
+  linked_entity_id   Int    // ID of the NPC, Location, etc.
+  linked_entity_type String // "npc", "location", "encounter"
+
+  note    notes @relation(fields: [note_id], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@id([note_id, linked_entity_id, linked_entity_type])
+  @@index([linked_entity_id, linked_entity_type])
 }

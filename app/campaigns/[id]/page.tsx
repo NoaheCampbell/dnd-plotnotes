@@ -17,7 +17,17 @@ export default async function CampaignDetailsPage({ params }: CampaignPageProps)
       npcs: true,
       locations: true,
       items: true,
-      notes: true,
+      notes: {
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          created_at: true,
+          campaign_id: true,
+          // We are not including entity_links here to keep the payload smaller
+          // If entity_links are needed on this page, they can be added to this select.
+        }
+      },
       sessions: true,
       encounters: true,
     },
