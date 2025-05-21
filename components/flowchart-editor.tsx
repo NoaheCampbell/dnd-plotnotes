@@ -679,12 +679,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   }, [campaignId, setNodes, setEdges, rfInstance, setFlowchartName]);
 
   useEffect(() => {
-    if (syncTrigger && syncTrigger > 0 && campaignId) {
-      // Check campaignId to ensure it's available before syncing
-      
+    if (syncTrigger && syncTrigger > 0 && campaignId && !flowchartId) { 
+      // Only auto-sync via trigger if there's a campaign, a trigger,
+      // AND we are not loading a specific existing flowchartId.
+      // If flowchartId is present, loadFlowchart takes precedence, and manual sync is available.
       syncFlowchartWithCampaignData();
     }
-  }, [syncTrigger, campaignId]); // Add campaignId to dependencies
+  }, [syncTrigger, campaignId, flowchartId, syncFlowchartWithCampaignData]); // Added flowchartId and syncFlowchartWithCampaignData to deps
 
   const addNpcNode = useCallback(() => {
     const newNodeId = getNewNodeId();
