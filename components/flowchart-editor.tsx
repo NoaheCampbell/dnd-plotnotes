@@ -7,29 +7,33 @@ import ReactFlow, {
   addEdge,
   useNodesState,
   useEdgesState,
-  Node,
-  Edge,
-  Connection,
-  Viewport,
-  ReactFlowProvider, // Added for encapsulating React Flow context
+  type Node,
+  type Edge,
+  type Connection,
+  type Viewport,
+  type NodeProps,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import NPCNode from './custom-nodes/NPCNode'; // Import NPCNode
-import LocationNode from './custom-nodes/LocationNode'; // Import LocationNode
-import NoteNode from './custom-nodes/NoteNode'; // Import NoteNode
-import EncounterNode from './custom-nodes/EncounterNode'; // Import EncounterNode
-import { NodeResizer } from '@reactflow/node-resizer';
+import ConfigurableNode from './custom-nodes/ConfigurableNode';
+import {
+  npcNodeConfig,
+  locationNodeConfig,
+  noteNodeConfig,
+  encounterNodeConfig,
+  ConfigurableNodeData
+} from './custom-nodes/node-configs';
 import '@reactflow/node-resizer/dist/style.css';
-import { toast } from 'sonner'; // Import sonner toast
+import { toast } from 'sonner';
 
 interface FlowchartEditorProps {
-  flowchartId?: string; // For loading an existing flowchart
-  campaignId?: number;  // For creating a new flowchart linked to a campaign
-  initialName?: string; // Optional initial name for a new flowchart
-  onSaveSuccess?: (savedFlowchart: any) => void; // Callback for successful save
-  syncTrigger?: number; // To trigger a manual sync from the parent
+  flowchartId?: string;
+  campaignId?: number;
+  initialName?: string;
+  onSaveSuccess?: (savedFlowchart: any) => void;
+  syncTrigger?: number;
 }
 
 let id = 0;
@@ -43,22 +47,19 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [flowchartName, setFlowchartName] = useState(initialName || 'New Flowchart');
-  const [rfInstance, setRfInstance] = useState<any>(null); // To access React Flow instance for saving viewport
+  const [rfInstance, setRfInstance] = useState<any>(null);
   const [currentFlowchartId, setCurrentFlowchartId] = useState<string | undefined>(flowchartId);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentNodeLabel, setCurrentNodeLabel] = useState<string>("");
   const [lastPaneClickFlowPosition, setLastPaneClickFlowPosition] = useState<{x: number, y: number} | null>(null);
-  const [flowchartViewKey, setFlowchartViewKey] = useState<number>(1); // Key for forcing ReactFlow remount
-  const blockLoadAfterSyncRef = useRef<boolean>(false); // Prevent loadFlowchart after sync using a ref
+  const [flowchartViewKey, setFlowchartViewKey] = useState<number>(1);
+  const blockLoadAfterSyncRef = useRef<boolean>(false);
 
-  // Define node types
   const nodeTypes = useMemo(() => ({
-    npcNode: NPCNode, // Register NPCNode
-    locationNode: LocationNode, // Register LocationNode
-    noteNode: NoteNode, // Register NoteNode
-    encounterNode: EncounterNode, // Register EncounterNode
-    // We can add more custom node types here later
-    // default: DefaultNode, // if you want to customize the default one too
+    npcNode: (props: NodeProps<ConfigurableNodeData>) => <ConfigurableNode {...props} config={npcNodeConfig} />,
+    locationNode: (props: NodeProps<ConfigurableNodeData>) => <ConfigurableNode {...props} config={locationNodeConfig} />,
+    noteNode: (props: NodeProps<ConfigurableNodeData>) => <ConfigurableNode {...props} config={noteNodeConfig} />,
+    encounterNode: (props: NodeProps<ConfigurableNodeData>) => <ConfigurableNode {...props} config={encounterNodeConfig} />,
   }), []);
 
   const onConnect = useCallback(
@@ -67,7 +68,6 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   );
 
   const isValidConnection = useCallback((connection: Connection) => {
-
     const sourceNode = nodes.find((node) => node.id === connection.source);
     const targetNode = nodes.find((node) => node.id === connection.target);
     
@@ -216,7 +216,6 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
       const unlinkedNpcData: any[] = [];
       const unlinkedEncounterData: any[] = [];
-      const unlinkedNoteData: any[] = [];
 
       // Map to store next Y position for sources linking to a specific target node ID
       const targetLinkedYTracker = new Map<string, number>();
@@ -621,29 +620,6 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         newNodes.push(encounterNode);
         allCreatedNodesMap.set(nodeId, encounterNode);
       });
-
-      // Process deferred unlinked Notes
-      // This section is no longer needed as notes are processed above.
-      // Unlinked notes are handled by their initial placement if they have no entity_links.
-      /*
-      unlinkedNoteData.forEach(noteData => {
-        const nodeId = `note-${noteData.id}`;
-        const nodeSize = getNodeSize('noteNode');
-        const position = { x: UNLINKED_X, y: yTrackers.unlinked };
-        yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
-        
-        const noteNode: Node = {
-          id: nodeId,
-          type: 'noteNode',
-          position,
-          data: { label: noteData.title || `Note ${noteData.id}` },
-          style: { width: nodeSize.width, height: nodeSize.height },
-          zIndex: globalZIndexCounter++,
-        };
-        newNodes.push(noteNode);
-        allCreatedNodesMap.set(nodeId, noteNode);
-      });
-      */
 
       // Sort nodes by their Y position then X to improve rendering order for overlapping nodes
       newNodes.sort((a, b) => {
