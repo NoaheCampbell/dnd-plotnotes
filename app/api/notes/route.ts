@@ -6,11 +6,22 @@ export async function POST(req: Request) {
   const campaign_id = formData.get("campaign_id");
   const title = formData.get("title");
   const content = formData.get("content") as string | null;
-  const linked_entity_type = formData.get("linked_entity_type") as string | null;
-  const linked_entity_id_str = formData.get("linked_entity_id") as string | null;
-  const linked_entity_name = formData.get("linked_entity_name") as string | null;
+  const entity_links_json_string = formData.get("entity_links_json_string") as string | null;
 
-  const linked_entity_id = linked_entity_id_str ? parseInt(linked_entity_id_str, 10) : null;
+  let parsedEntityLinks: Array<{ linked_entity_id: number; linked_entity_type: string }> = [];
+  if (entity_links_json_string) {
+    try {
+      parsedEntityLinks = JSON.parse(entity_links_json_string);
+      if (!Array.isArray(parsedEntityLinks)) {
+        parsedEntityLinks = [];
+      }
+    } catch (error) {
+      console.error("Failed to parse entity_links_json_string:", error);
+      // Decide if you want to return an error or proceed without links
+      // For now, proceeding without links if parsing fails
+      parsedEntityLinks = [];
+    }
+  }
 
   if (!campaign_id || !title) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -22,17 +33,24 @@ export async function POST(req: Request) {
         campaign_id: Number(campaign_id),
         title: title as string,
         content: content,
-        linked_entity_type: linked_entity_type,
-        linked_entity_id: linked_entity_id,
-        linked_entity_name: linked_entity_name,
+        ...(parsedEntityLinks.length > 0 && {
+          entity_links: {
+            create: parsedEntityLinks.map(link => ({
+              linked_entity_id: link.linked_entity_id,
+              linked_entity_type: link.linked_entity_type,
+              // assignedAt and updatedAt should have defaults or auto-update in schema
+            })),
+          },
+        }),
       },
       include: {
         campaigns: true,
+        entity_links: true, // Include the created links
       },
     });
     return NextResponse.json({
       ...note,
-      campaign: note.campaigns?.title || "", // Keep this for now, but consider if campaigns relation is always needed
+      campaign: note.campaigns?.title || "", 
     });
   } catch (error) {
     console.error("Error creating note:", error);
@@ -45,6 +63,7 @@ export async function GET() {
     const notes = await prisma.notes.findMany({
       include: {
         campaigns: true,
+        entity_links: true, // Good to include here as well if lists of notes need their links
       },
       orderBy: { id: "desc" },
     });

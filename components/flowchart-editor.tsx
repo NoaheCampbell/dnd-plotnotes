@@ -211,7 +211,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         unlinked: yOffset,
         sources: yOffset, // Added for the SOURCES_X column
         targets: yOffset,
-        notes: yOffset,
+        notesGeneral: yOffset, // For overall progression in the NOTES_X column
       };
 
       const unlinkedNpcData: any[] = [];
@@ -445,29 +445,64 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       
       // 4. Process Notes
       // This section will now create all note nodes first, then create edges based on entity_links.
-      // Unlinked notes will be processed at the end with other unlinked entities.
       const NOTES_X = SOURCES_X - (nodeDefaultSizes.noteNode.width + HORIZONTAL_SPACING); // New column for notes, to the left of sources
-      yTrackers.notes = yOffset; // Add a Y tracker for the notes column
+      // yTrackers.notes = yOffset; // Remove this, use yTrackers.notesGeneral
+
+      // New tracker for positioning notes in their column based on what they link to.
+      // Key: targetNodeId (e.g., "npc-123")
+      // Value: next available Y position in NOTES_X for a note linking to this target.
+      const notesLinkedToTargetYTracker = new Map<string, number>();
 
       apiData.notes?.forEach((noteData: any) => {
         const nodeId = `note-${noteData.id}`;
         const nodeSize = getNodeSize('noteNode');
-        // Initial placement for all notes. This might be adjusted if they have links.
-        // For now, let's place them in their own column or the unlinked column if they have no links.
+        let position;
+
+        let primaryTargetNode: Node | undefined = undefined;
+        if (noteData.entity_links && noteData.entity_links.length > 0) {
+          // Use the first link as the primary anchor for positioning
+          const firstLink = noteData.entity_links[0];
+          const targetEntityType = String(firstLink.linked_entity_type).toLowerCase();
+          const singularEntityType = targetEntityType.endsWith('s') && targetEntityType !== 'notes' ? targetEntityType.slice(0, -1) : targetEntityType;
+          const targetNodeId = `${singularEntityType}-${firstLink.linked_entity_id}`;
+          primaryTargetNode = allCreatedNodesMap.get(targetNodeId);
+        }
+
+        if (primaryTargetNode) {
+          let desiredInitialY = primaryTargetNode.position.y;
+          let actualY;
+
+          if (notesLinkedToTargetYTracker.has(primaryTargetNode.id)) {
+            // Already a stack of notes linking to this primaryTargetNode, continue that stack
+            actualY = notesLinkedToTargetYTracker.get(primaryTargetNode.id)!;
+          } else {
+            // First note linking to this primaryTargetNode (or stack).
+            // Align with target's Y, but not above the general flow of the notes column.
+            actualY = Math.max(desiredInitialY, yTrackers.notesGeneral);
+          }
+          position = { x: NOTES_X, y: actualY };
+          notesLinkedToTargetYTracker.set(primaryTargetNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
+          // Ensure yTrackers.notesGeneral advances past any group of notes linked to the same target
+          yTrackers.notesGeneral = Math.max(yTrackers.notesGeneral, actualY + nodeSize.height + globalNodeSpacingY);
+        } else {
+          // Unlinked note or primary target not found
+          position = { x: NOTES_X, y: yTrackers.notesGeneral };
+          yTrackers.notesGeneral += nodeSize.height + globalNodeSpacingY;
+        }
         
         const noteNode: Node = {
           id: nodeId,
           type: 'noteNode',
-          position: { x: NOTES_X, y: yTrackers.notes }, // Tentative position
+          position, // Use the calculated position
           data: { label: noteData.title || `Note ${noteData.id}`, entity_links: noteData.entity_links || [] },
           style: { width: nodeSize.width, height: nodeSize.height },
           zIndex: globalZIndexCounter++,
         };
         newNodes.push(noteNode);
         allCreatedNodesMap.set(nodeId, noteNode);
-        yTrackers.notes += nodeSize.height + globalNodeSpacingY; // Increment Y for the next note in this column
+        // yTrackers.notes += nodeSize.height + globalNodeSpacingY; // Remove this line
 
-        // If the note has links, create edges
+        // If the note has links, create edges (this logic remains the same)
         if (noteData.entity_links && Array.isArray(noteData.entity_links)) {
           noteData.entity_links.forEach((link: { linked_entity_id: number, linked_entity_type: string }) => {
             const targetEntityType = String(link.linked_entity_type).toLowerCase();
