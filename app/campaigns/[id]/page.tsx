@@ -24,8 +24,7 @@ export default async function CampaignDetailsPage({ params }: CampaignPageProps)
           content: true,
           created_at: true,
           campaign_id: true,
-          // We are not including entity_links here to keep the payload smaller
-          // If entity_links are needed on this page, they can be added to this select.
+          entity_links: true,
         }
       },
       sessions: true,
@@ -36,8 +35,13 @@ export default async function CampaignDetailsPage({ params }: CampaignPageProps)
   const allCampaigns = await prisma.campaigns.findMany({ select: { id: true, title: true } });
 
   // Normalize date fields to ISO strings for all entities
-  function normalizeDates(obj: any) {
+  function normalizeDates(obj: any): any {
     if (!obj || typeof obj !== 'object') return obj;
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => normalizeDates(item));
+    }
+
     const out = { ...obj };
     for (const key in out) {
       if (out[key] instanceof Date) {

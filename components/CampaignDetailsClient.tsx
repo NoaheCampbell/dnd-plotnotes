@@ -151,8 +151,18 @@ export default function CampaignDetailsClient({
           }
         }
 
+        // For notes, ensure entity_links are carried over
+        if (section === 'notes' && entityToEdit.hasOwnProperty('entity_links')) {
+          plainDataEntity.entity_links = entityToEdit.entity_links;
+        }
+        // Also carry over the 'campaigns' object if present (for notes, used in API response)
+        if (entityToEdit.hasOwnProperty('campaigns')) {
+            plainDataEntity.campaigns = entityToEdit.campaigns;
+        }
+
       } else {
         console.error(`Config not found for section ${section}. Falling back to shallow clone for entity:`, entityToEdit);
+        // Fallback ensures entity_links would be copied if no config.fields logic runs
         Object.assign(plainDataEntity, { ...entityToEdit }); 
       }
       
@@ -194,6 +204,16 @@ export default function CampaignDetailsClient({
         const updatedItems = currentSectionItems.map(item => 
           item.id === updatedEntity.id ? updatedEntity : item
         );
+        // Also update the editEntity state if the updated entity is the one being edited
+        setEditEntity(prevEditEntity => {
+          if (prevEditEntity[sectionKey] && prevEditEntity[sectionKey].id === updatedEntity.id) {
+            return {
+              ...prevEditEntity,
+              [sectionKey]: updatedEntity, // Use the full updated entity from API response
+            };
+          }
+          return prevEditEntity;
+        });
         return {
           ...prevSectionData,
           [sectionKey]: updatedItems,
@@ -201,7 +221,17 @@ export default function CampaignDetailsClient({
       }
     });
     triggerFlowchartSync();
-    closeModal(); // Close the form modal
+    // We don't call closeModal() here immediately if it's an edit, 
+    // allowing the form to reflect the updated data if needed by the user.
+    // The form's own submit handler calls setOpen(false) which then calls closeModal via props.
+    // However, for a consistent UX where the dialog always closes on success:
+    if (!isNew) {
+        // If it was an edit, GenericEntityForm calls setOpen(false) which calls closeModal.
+        // If we want to ensure the modal closes from here for an update too:
+        // closeModal(); // This might be redundant if GenericEntityForm handles it.
+    } else {
+        closeModal(); // Close for new entities
+    }
   };
 
   const handleFlowchartCreatedOrUpdated = (flowchart: any) => {

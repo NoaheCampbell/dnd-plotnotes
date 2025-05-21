@@ -26,8 +26,8 @@ export function getFullEntityConfig(config: any, apiPath: string, campaigns: any
       ...fields,
     ];
   }
-  // Inject image field if not present
-  if (!fields.some((f: any) => f.name === "image")) {
+  // Inject image field if not present AND if config.imageField is not explicitly undefined
+  if (config.imageField !== undefined && !fields.some((f: any) => f.name === "image")) {
     fields = [...fields, { name: "image", label: "Image", type: "file" }];
   }
   return {

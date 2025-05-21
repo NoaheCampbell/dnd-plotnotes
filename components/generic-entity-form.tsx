@@ -584,83 +584,83 @@ export default function GenericEntityForm({
                 })}
               </div>
             ))}
-          </div>
 
-          {/* UI for Polymorphic Multi-Link for Notes */}
-          {config.api === '/api/notes' && (
-            <div className="space-y-4 border-t border-amber-800/20 dark:border-amber-700/30 pt-6 mt-6">
-              <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-3">Linked Entities</h3>
-              
-              {/* Form to add a new link */}
-              <div className="flex items-end gap-3 p-3 border border-amber-800/20 dark:border-amber-700/40 rounded-lg bg-amber-50/30 dark:bg-stone-700/20 shadow-sm">
-                <div className="flex-1 space-y-1.5">
-                  <Label htmlFor="link-entity-type" className="text-xs font-medium text-amber-800 dark:text-amber-300">Entity Type</Label>
-                  <select 
-                    id="link-entity-type"
-                    value={linkEntityTypeToAdd}
-                    onChange={e => setLinkEntityTypeToAdd(e.target.value)}
-                    className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200"
-                  >
-                    <option value="">Select Type...</option>
-                    <option value="campaign">Campaign</option>
-                    <option value="npc">NPC</option>
-                    <option value="location">Location</option>
-                    <option value="item">Item</option>
-                    <option value="encounter">Encounter</option>
-                    {/* Add other linkable entity types here */}
-                  </select>
-                </div>
-                <div className="flex-1 space-y-1">
-                  <Label htmlFor="link-entity-id" className="text-sm text-amber-800 dark:text-amber-300">Specific Entity</Label>
-                  <select 
-                    id="link-entity-id"
-                    value={linkEntityIdToAdd}
-                    onChange={e => setLinkEntityIdToAdd(e.target.value)}
-                    disabled={!linkEntityTypeToAdd || availableEntitiesForNewLink.length === 0}
-                    className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 disabled:opacity-50"
-                  >
-                    <option value="">Select {linkEntityTypeToAdd ? linkEntityTypeToAdd.charAt(0).toUpperCase() + linkEntityTypeToAdd.slice(1) : 'Entity'}...</option>
-                    {availableEntitiesForNewLink.map(entity => (
-                      <option key={entity.id} value={entity.id}>{entity.name || entity.title}</option>
-                    ))}
-                  </select>
-                </div>
-                <Button 
-                  type="button" 
-                  onClick={handleAddLink}
-                  disabled={!linkEntityTypeToAdd || !linkEntityIdToAdd}
-                  className="h-9 bg-amber-700 hover:bg-amber-600 text-amber-100"
-                >
-                  Add Link
-                </Button>
-              </div>
-
-              {/* List of current links */}
-              {currentLinks.length > 0 && (
-                <div className="mt-5 pt-4 border-t border-amber-800/10 dark:border-amber-700/20">
-                  <h4 className="text-md font-medium text-amber-800 dark:text-amber-300 mb-2">Currently Linked:</h4>
-                  <div className="space-y-2">
-                    {currentLinks.map((link, index) => (
-                      <div key={`${link.linked_entity_type}-${link.linked_entity_id}-${index}`} className="flex items-center justify-between p-2.5 border border-amber-800/10 dark:border-amber-700/30 rounded-md bg-amber-50/40 dark:bg-stone-700/30 shadow-sm">
-                        <span className="text-sm text-amber-900 dark:text-amber-200">
-                          {link.display_name || `(${link.linked_entity_type} ID: ${link.linked_entity_id})`}
-                        </span>
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleRemoveLink(index)}
-                          className="text-red-600 hover:text-red-500 dark:text-red-500 dark:hover:text-red-400 px-1 py-0 h-auto"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    ))}
+            {/* UI for Polymorphic Multi-Link for Notes - MOVED INSIDE SCROLLABLE AREA */}
+            {config.api === '/api/notes' && (
+              <div className="space-y-4 border-t border-amber-800/20 dark:border-amber-700/30 pt-6 mt-6">
+                <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-200 mb-3">Linked Entities</h3>
+                
+                {/* Form to add a new link */}
+                <div className="flex items-end gap-3 p-3 border border-amber-800/20 dark:border-amber-700/40 rounded-lg bg-amber-50/30 dark:bg-stone-700/20 shadow-sm">
+                  <div className="flex-1 space-y-1.5">
+                    <Label htmlFor="link-entity-type" className="text-xs font-medium text-amber-800 dark:text-amber-300">Entity Type</Label>
+                    <select 
+                      id="link-entity-type"
+                      value={linkEntityTypeToAdd}
+                      onChange={e => setLinkEntityTypeToAdd(e.target.value)}
+                      className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200"
+                    >
+                      <option value="">Select Type...</option>
+                      <option value="npc">NPC</option>
+                      <option value="location">Location</option>
+                      <option value="item">Item</option>
+                      <option value="encounter">Encounter</option>
+                      {/* Add other linkable entity types here */}
+                    </select>
                   </div>
+                  <div className="flex-1 space-y-1">
+                    <Label htmlFor="link-entity-id" className="text-sm text-amber-800 dark:text-amber-300">Specific Entity</Label>
+                    <select 
+                      id="link-entity-id"
+                      value={linkEntityIdToAdd}
+                      onChange={e => setLinkEntityIdToAdd(e.target.value)}
+                      disabled={!linkEntityTypeToAdd || availableEntitiesForNewLink.length === 0}
+                      className="w-full rounded-md border border-amber-800/30 bg-amber-50/50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 disabled:opacity-50"
+                    >
+                      <option value="">Select {linkEntityTypeToAdd ? linkEntityTypeToAdd.charAt(0).toUpperCase() + linkEntityTypeToAdd.slice(1) : 'Entity'}...</option>
+                      {availableEntitiesForNewLink.map(entity => (
+                        <option key={entity.id} value={entity.id}>{entity.name || entity.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Button 
+                    type="button" 
+                    onClick={handleAddLink}
+                    disabled={!linkEntityTypeToAdd || !linkEntityIdToAdd}
+                    className="h-9 bg-amber-700 hover:bg-amber-600 text-amber-100"
+                  >
+                    Add Link
+                  </Button>
                 </div>
-              )}
-            </div>
-          )}
+
+                {/* List of current links */}
+                {currentLinks.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-amber-800/20 dark:border-amber-700/30 bg-amber-50/20 dark:bg-stone-700/10 p-4 rounded-lg shadow-inner">
+                    <h4 className="text-md font-semibold text-amber-800 dark:text-amber-300 mb-3">Currently Linked:</h4>
+                    <div className="space-y-2">
+                      {currentLinks.map((link, index) => (
+                        <div key={`${link.linked_entity_type}-${link.linked_entity_id}-${index}`} className="flex items-center justify-between p-2.5 border border-amber-800/10 dark:border-amber-700/30 rounded-md bg-amber-50/40 dark:bg-stone-700/30 shadow-sm">
+                          <span className="text-sm text-amber-900 dark:text-amber-200">
+                            {link.display_name || `(${link.linked_entity_type} ID: ${link.linked_entity_id})`}
+                          </span>
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleRemoveLink(index)}
+                            className="text-red-600 hover:text-red-500 dark:text-red-500 dark:hover:text-red-400 px-1 py-0 h-auto"
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {/* END OF MOVED SECTION */}
+          </div>
 
           <DialogFooter className="mt-4 pt-4 border-t border-amber-800/20">
             <DialogClose asChild>

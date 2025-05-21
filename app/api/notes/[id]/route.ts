@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma"
 import { NextResponse } from "next/server"
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params: routeParams }: { params: { id: string } }) {
+  const params = await routeParams; // Await the params
   const id = Number(params.id)
   const formData = await req.formData()
   const campaign_id = formData.get("campaign_id") as string | null
@@ -90,7 +91,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(req: Request, { params: routeParams }: { params: { id: string } }) {
+  const params = await routeParams; // Await the params
   try {
     const id = Number(params.id);
     if (isNaN(id)) {
