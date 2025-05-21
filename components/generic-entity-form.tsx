@@ -62,6 +62,7 @@ export default function GenericEntityForm({
 
   // State for Next Location selection
   const [selectedNextLocationId, setSelectedNextLocationId] = useState<string | number | null>(null);
+  const [nextLocationPopoverOpen, setNextLocationPopoverOpen] = useState(false);
 
   const getEntityDisplayName = useCallback((entityType: string, entityId: number | string): string => {
     let list: any[] = [];
@@ -123,6 +124,7 @@ export default function GenericEntityForm({
       setLinkEntityIdToAdd('');
       setAvailableEntitiesForNewLink([]);
       setSelectedNextLocationId(null); // Reset next location ID
+      setNextLocationPopoverOpen(false); // Reset popover state
     }
   }, [entity, open, config.api, getEntityDisplayName]); // Added getEntityDisplayName dependency
 
@@ -685,12 +687,12 @@ export default function GenericEntityForm({
               <div className="space-y-2 border-t border-amber-800/20 dark:border-amber-600/30 pt-4 mt-4">
                  <h4 className="text-sm font-medium text-amber-900 dark:text-amber-200 mb-2">Link Next Location</h4>
                 <Label htmlFor="next_location_id" className="text-amber-800 dark:text-amber-300">Next Location in Sequence</Label>
-                <Popover>
+                <Popover open={nextLocationPopoverOpen} onOpenChange={setNextLocationPopoverOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
-                      aria-expanded={!!selectedNextLocationId}
+                      aria-expanded={nextLocationPopoverOpen}
                       className="w-full justify-between text-amber-900 dark:text-amber-200 border-amber-400 dark:border-amber-600 hover:bg-amber-50 dark:hover:bg-stone-700"
                     >
                       {selectedNextLocationId
@@ -710,6 +712,7 @@ export default function GenericEntityForm({
                               value="clear"
                               onSelect={() => {
                                   setSelectedNextLocationId(null);
+                                  setNextLocationPopoverOpen(false);
                               }}
                           >
                               <Check className={cn("mr-2 h-4 w-4", !selectedNextLocationId ? "opacity-100" : "opacity-0")} />
@@ -723,6 +726,7 @@ export default function GenericEntityForm({
                               value={String(loc.id)}
                               onSelect={(currentValue) => {
                                 setSelectedNextLocationId(currentValue === String(selectedNextLocationId) ? null : currentValue);
+                                setNextLocationPopoverOpen(false);
                               }}
                             >
                               <Check className={cn("mr-2 h-4 w-4", String(selectedNextLocationId) === String(loc.id) ? "opacity-100" : "opacity-0")} />

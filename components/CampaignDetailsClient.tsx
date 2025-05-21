@@ -244,8 +244,8 @@ export default function CampaignDetailsClient({
       }
       return [...prev, flowchart];
     });
-    setShowFlowchartEditor(false);
-    setEditingFlowchart(null);
+    // setShowFlowchartEditor(false); // Don't close on save
+    // setEditingFlowchart(null); // Keep editing the same flowchart unless explicitly closed
   };
 
   const handleNewFlowchart = () => {
@@ -470,7 +470,7 @@ export default function CampaignDetailsClient({
             setEditingFlowchart(null);
           }
         }}>
-          <DialogContent className="max-w-4xl h-[90vh] flex flex-col bg-parchment-light dark:bg-stone-800 border-amber-800/20 p-0">
+          <DialogContent className="max-w-6xl h-[95vh] flex flex-col bg-parchment-light dark:bg-stone-800 border-amber-800/20 p-0">
             <DialogHeader className="p-4 border-b border-amber-800/20">
               <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">
                 {editingFlowchart?.id ? `Edit Flowchart: ${editingFlowchart.name}` : "Create New Flowchart"}

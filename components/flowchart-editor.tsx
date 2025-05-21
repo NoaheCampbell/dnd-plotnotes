@@ -28,6 +28,7 @@ import {
 import '@reactflow/node-resizer/dist/style.css';
 import { toast } from 'sonner';
 import { locations as Location } from '@prisma/client';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface FlowchartEditorProps {
   flowchartId?: string;
@@ -55,6 +56,11 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const [lastPaneClickFlowPosition, setLastPaneClickFlowPosition] = useState<{x: number, y: number} | null>(null);
   const [flowchartViewKey, setFlowchartViewKey] = useState<number>(1);
   const blockLoadAfterSyncRef = useRef<boolean>(false);
+
+  // State for save status indication
+  type SaveState = 'idle' | 'saving' | 'success' | 'error';
+  const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [saveMessage, setSaveMessage] = useState<string>('');
 
   const nodeTypes = useMemo(() => ({
     npcNode: (props: NodeProps<ConfigurableNodeData>) => <ConfigurableNode {...props} config={npcNodeConfig} />,
@@ -944,8 +950,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const saveFlowchart = async () => {
     if (!campaignId && !currentFlowchartId) {
       toast.error('Cannot save: No campaign context or existing flowchart ID.');
+      setSaveState('error');
+      setSaveMessage('Cannot save: No campaign context or existing flowchart ID.');
       return;
     }
+
+    setSaveState('saving');
+    setSaveMessage(''); // Clear previous messages
 
     const viewport = rfInstance?.getViewport();
     const flowchartData = {
@@ -980,6 +991,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const savedFlowchart = await response.json();
       setCurrentFlowchartId(savedFlowchart.id);
       toast.success('Flowchart saved successfully!');
+      setSaveState('success');
+      setSaveMessage('Saved successfully!');
       
       if (onSaveSuccess) {
         onSaveSuccess(savedFlowchart);
@@ -988,8 +1001,21 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     } catch (error: any) {
       console.error('Error saving flowchart:', error);
       toast.error(error.message || 'Error saving flowchart. See console for details.');
+      setSaveState('error');
+      setSaveMessage(error.message || 'Error saving flowchart. See console for details.');
     }
   };
+
+  // Effect to reset save state after a short delay for success/error messages
+  useEffect(() => {
+    if (saveState === 'success' || saveState === 'error') {
+      const timer = setTimeout(() => {
+        setSaveState('idle');
+        setSaveMessage('');
+      }, 3000); // Display message for 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [saveState]);
 
   return (
     <div style={{ height: '100%', width: '100%' }} className="bg-background dark:bg-stone-900/50 flex flex-col">
@@ -999,7 +1025,11 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         <Input 
           type="text" 
           value={flowchartName} 
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFlowchartName(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+            setFlowchartName(e.target.value);
+            setSaveState('idle'); // Reset save state on name change
+            setSaveMessage('');
+          }}
           placeholder="Flowchart Name"
           className="max-w-xs text-base h-9 bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
         />
@@ -1008,7 +1038,32 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         <Button onClick={addNoteNode} variant="outline" size="sm" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-700">Add Note</Button>
         <Button onClick={addEncounterNode} variant="outline" size="sm" className="text-red-800 border-red-700 hover:bg-red-100 dark:text-red-300 dark:border-red-500 dark:hover:bg-stone-700">Add Encounter</Button>
         <Button onClick={syncFlowchartWithCampaignData} variant="outline" size="sm" className="text-purple-800 border-purple-700 hover:bg-purple-100 dark:text-purple-300 dark:border-purple-500 dark:hover:bg-stone-700">Sync with Campaign</Button>
-        <Button onClick={saveFlowchart} variant="default" size="sm" className="bg-amber-800 text-amber-100 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600 ml-auto">Save Flowchart</Button>
+        
+        <div className="flex items-center gap-2 ml-auto">
+          {saveState === 'saving' && (
+            <Loader2 className="h-5 w-5 text-amber-700 dark:text-amber-400 animate-spin" />
+          )}
+          {saveState === 'success' && (
+            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500" />
+          )}
+          {saveState === 'error' && (
+            <XCircle className="h-5 w-5 text-red-600 dark:text-red-500" />
+          )}
+          {saveMessage && (
+            <span className={`text-xs ${saveState === 'error' ? 'text-red-600 dark:text-red-500' : 'text-green-600 dark:text-green-500'}`}>
+              {saveMessage}
+            </span>
+          )}
+          <Button 
+            onClick={saveFlowchart} 
+            variant="default" 
+            size="sm" 
+            className="bg-amber-800 text-amber-100 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600"
+            disabled={saveState === 'saving'}
+          >
+            {saveState === 'saving' ? 'Saving...' : 'Save Flowchart'}
+          </Button>
+        </div>
         
         {selectedNode && (
           <div className="flex items-center gap-2 ml-auto border-l border-amber-800/20 dark:border-stone-700 pl-2">
