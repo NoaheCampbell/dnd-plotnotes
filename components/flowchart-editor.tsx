@@ -223,22 +223,34 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const allCreatedNodesMap = new Map<string, Node>(); // To quickly find any node by its ID
       let globalZIndexCounter = 1; // Initialize z-index counter
 
+      // Helper function to create and register a new node
+      const createAndRegisterNode = (nodeId: string, type: string, position: {x: number, y: number}, data: any, style: any) => {
+        const node: Node = {
+          id: nodeId,
+          type,
+          position,
+          data,
+          style,
+          zIndex: globalZIndexCounter++,
+        };
+        newNodes.push(node);
+        allCreatedNodesMap.set(nodeId, node);
+        return node; // Return the created node in case it's needed immediately
+      };
+
       // 1. Process Locations (as Targets)
       apiData.locations?.forEach((locData: any) => {
         const nodeId = `location-${locData.id}`;
         const nodeSize = nodeDefaultSizes.locationNode || nodeDefaultSizes.default;
         const position = { x: TARGETS_X, y: yTrackers.targets };
         
-        const locationNode: Node = {
-          id: nodeId,
-          type: 'locationNode',
-          position,
-          data: { label: locData.name || `Location ${locData.id}`, linkedNoteIds: locData.linked_note_ids || [] },
-          style: { width: nodeSize.width, height: nodeSize.height },
-          zIndex: globalZIndexCounter++,
-        };
-        newNodes.push(locationNode);
-        allCreatedNodesMap.set(nodeId, locationNode);
+        const locationNode = createAndRegisterNode(
+          nodeId, 
+          'locationNode', 
+          position, 
+          { label: locData.name || `Location ${locData.id}`, linkedNoteIds: locData.linked_note_ids || [] }, 
+          { width: nodeSize.width, height: nodeSize.height }
+        );
         if (locData.name) {
           locationNodeMapByName.set(locData.name, locationNode);
         }
@@ -303,16 +315,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             sourceHandle: 'right',
             targetHandle: 'left',
           });
-          const npcNode: Node = {
-            id: nodeId,
-            type: 'npcNode',
+          createAndRegisterNode(
+            nodeId,
+            'npcNode',
             position,
-            data: { label: npcData.name || `NPC ${npcData.id}`, linkedNoteIds: npcData.linked_note_ids || [] },
-            style: { width: nodeSize.width, height: nodeSize.height },
-            zIndex: globalZIndexCounter++,
-          };
-          newNodes.push(npcNode);
-          allCreatedNodesMap.set(nodeId, npcNode);
+            { label: npcData.name || `NPC ${npcData.id}`, linkedNoteIds: npcData.linked_note_ids || [] },
+            { width: nodeSize.width, height: nodeSize.height }
+          );
         } else {
           unlinkedNpcData.push(npcData); // Defer processing
         }
@@ -397,19 +406,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           yTrackers.unlinked += getNodeSize('encounterNode').height + globalNodeSpacingY; // Increment for next unlinked
         }
         
-        const encounterNode: Node = {
-          id: currentEncounterNodeId,
-          type: 'encounterNode',
-          position: { x: xPos, y: yPos },
-          data: { 
+        const encounterNode = createAndRegisterNode(
+          currentEncounterNodeId,
+          'encounterNode',
+          { x: xPos, y: yPos },
+          { 
             label: encData.title || `Encounter ${encData.id}`, 
             linkedNoteIds: encData.linked_note_ids || [] 
           },
-          style: getNodeSize('encounterNode'),
-          zIndex: globalZIndexCounter++,
-        };
-        newNodes.push(encounterNode);
-        allCreatedNodesMap.set(currentEncounterNodeId, encounterNode);
+          getNodeSize('encounterNode')
+        );
 
         // NEW: Create edges from Encounter to its NPCs
         if (encData.npcs && Array.isArray(encData.npcs)) {
@@ -489,17 +495,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           yTrackers.notesGeneral += nodeSize.height + globalNodeSpacingY;
         }
         
-        const noteNode: Node = {
-          id: nodeId,
-          type: 'noteNode',
+        createAndRegisterNode(
+          nodeId,
+          'noteNode',
           position, // Use the calculated position
-          data: { label: noteData.title || `Note ${noteData.id}`, entity_links: noteData.entity_links || [] },
-          style: { width: nodeSize.width, height: nodeSize.height },
-          zIndex: globalZIndexCounter++,
-        };
-        newNodes.push(noteNode);
-        allCreatedNodesMap.set(nodeId, noteNode);
-        // yTrackers.notes += nodeSize.height + globalNodeSpacingY; // Remove this line
+          { label: noteData.title || `Note ${noteData.id}`, entity_links: noteData.entity_links || [] },
+          { width: nodeSize.width, height: nodeSize.height }
+        );
 
         // If the note has links, create edges (this logic remains the same)
         if (noteData.entity_links && Array.isArray(noteData.entity_links)) {
@@ -585,16 +587,13 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         const position = { x: UNLINKED_X, y: yTrackers.unlinked };
         yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
         
-        const npcNode: Node = {
-          id: nodeId,
-          type: 'npcNode',
+        createAndRegisterNode(
+          nodeId,
+          'npcNode',
           position,
-          data: { label: npcData.name || `NPC ${npcData.id}`, linkedNoteIds: npcData.linked_note_ids || [] },
-          style: { width: nodeSize.width, height: nodeSize.height },
-          zIndex: globalZIndexCounter++,
-        };
-        newNodes.push(npcNode);
-        allCreatedNodesMap.set(nodeId, npcNode);
+          { label: npcData.name || `NPC ${npcData.id}`, linkedNoteIds: npcData.linked_note_ids || [] },
+          { width: nodeSize.width, height: nodeSize.height }
+        );
       });
 
       // Process deferred unlinked Encounters
@@ -606,19 +605,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         
         yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
         
-        const encounterNode: Node = {
-          id: nodeId, 
-          type: 'encounterNode',
-          position: unlinkedNodePosition, 
-          data: { 
+        createAndRegisterNode(
+          nodeId, 
+          'encounterNode',
+          unlinkedNodePosition, 
+          { 
             label: encData.title || `Encounter ${encData.id}`, 
             linkedNoteIds: encData.linked_note_ids || [] 
           },
-          style: { width: nodeSize.width, height: nodeSize.height },
-          zIndex: globalZIndexCounter++,
-        };
-        newNodes.push(encounterNode);
-        allCreatedNodesMap.set(nodeId, encounterNode);
+          { width: nodeSize.width, height: nodeSize.height }
+        );
       });
 
       // Sort nodes by their Y position then X to improve rendering order for overlapping nodes

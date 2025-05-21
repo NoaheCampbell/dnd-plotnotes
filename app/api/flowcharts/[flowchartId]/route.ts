@@ -4,9 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // GET /api/flowcharts/[flowchartId] - Get a specific flowchart
 export async function GET(
   request: NextRequest,
-  { params }: { params: { flowchartId: string } }
+  { params: paramsPromise }: { params: Promise<{ flowchartId: string }> }
 ) {
   try {
+    const params = await paramsPromise;
     const flowchart = await prisma.flowchart.findUnique({
       where: { id: params.flowchartId },
     });
@@ -23,9 +24,10 @@ export async function GET(
 // PUT /api/flowcharts/[flowchartId] - Update a specific flowchart
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { flowchartId: string } }
+  { params: paramsPromise }: { params: Promise<{ flowchartId: string }> }
 ) {
   try {
+    const params = await paramsPromise;
     const body = await request.json();
     const { name, data } = body;
 
@@ -64,9 +66,10 @@ export async function PUT(
 // DELETE /api/flowcharts/[flowchartId] - Delete a specific flowchart
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { flowchartId: string } }
+  { params: paramsPromise }: { params: Promise<{ flowchartId: string }> }
 ) {
   try {
+    const params = await paramsPromise;
     await prisma.flowchart.delete({
       where: { id: params.flowchartId },
     });

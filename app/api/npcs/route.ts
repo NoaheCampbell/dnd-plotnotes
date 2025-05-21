@@ -1,12 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!,
-});
+import { uploadImageToCloudinary } from "@/lib/cloudinary-utils";
 
 export async function POST(req: Request) {
   try {
@@ -28,24 +22,11 @@ export async function POST(req: Request) {
     const backstory = formData.get("backstory") as string | null;
     const campaign_id = formData.get("campaign_id") as string | null;
     const location_name = formData.get("location_name") as string | null;
-    const imageFile = formData.get("image");
+    const imageFile = formData.get("image") as File | null;
 
     let image_url: string | undefined = undefined;
-    if (
-      imageFile &&
-      typeof imageFile === "object" &&
-      "size" in imageFile &&
-      (imageFile as File).size > 0
-    ) {
-      const arrayBuffer = await (imageFile as File).arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const uploadResult = await new Promise<{ secure_url: string }>((resolve, reject) => {
-        cloudinary.uploader.upload_stream({ resource_type: "image" }, (err, result) => {
-          if (err || !result) return reject(err);
-          resolve(result as any);
-        }).end(buffer);
-      });
-      image_url = uploadResult.secure_url;
+    if (imageFile) {
+      image_url = await uploadImageToCloudinary(imageFile);
     }
 
     const npc = await prisma.npcs.create({
