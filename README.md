@@ -7,10 +7,7 @@ PlotNotes is a web application designed to help game masters and writers manage 
 Before you begin, ensure you have the following installed on your system:
 
 *   **Node.js**: (v18.x or later recommended) - [Download Node.js](https://nodejs.org/)
-*   **pnpm**: (v8.x or later recommended) - After installing Node.js, you can install pnpm globally:
-    ```bash
-    npm install -g pnpm
-    ```
+*   **npm**: (Comes with Node.js) - Ensure it's up to date (`npm install -g npm@latest`).
 *   **PostgreSQL**: A running PostgreSQL instance. You can install it locally or use a cloud-hosted service. - [Download PostgreSQL](https://www.postgresql.org/download/)
 *   **Cloudinary Account (Optional but Recommended for Image Uploads)**: For image hosting functionality. - [Sign up for Cloudinary](https://cloudinary.com/users/register/free)
 
@@ -23,11 +20,10 @@ Before you begin, ensure you have the following installed on your system:
     ```
 
 2.  **Install Dependencies:**
-    Using pnpm (recommended based on pnpm-lock.yaml):
     ```bash
-    pnpm install
+    npm install
     ```
-    This will install all necessary project dependencies.
+    This will install all necessary project dependencies based on `package-lock.json`.
 
 3.  **Set up PostgreSQL Database:**
     *   Ensure your PostgreSQL server is running.
@@ -60,7 +56,7 @@ Before you begin, ensure you have the following installed on your system:
 5.  **Run Database Migrations:**
     Apply the database schema using Prisma Migrate:
     ```bash
-    pnpm prisma migrate dev
+    npx prisma migrate dev
     ```
     This command will:
     *   Create the necessary tables in your database based on `prisma/schema.prisma`.
@@ -70,12 +66,13 @@ Before you begin, ensure you have the following installed on your system:
 6.  **Generate Prisma Client (if needed separately):**
     While `prisma migrate dev` usually handles this, you can explicitly run:
     ```bash
-    pnpm prisma generate
+    npx prisma generate
     ```
 
 7.  **Run the Development Server:**
+    (Assuming `dev` is a script in your `package.json`, e.g., `"dev": "next dev"`)
     ```bash
-    pnpm dev
+    npm run dev
     ```
     The application should now be running at [http://localhost:3000](http://localhost:3000).
 
@@ -95,15 +92,15 @@ Before you begin, ensure you have the following installed on your system:
 
 ## Available Scripts
 
-(Refer to `package.json` for the full list. Common scripts include:)
+(Refer to `package.json` for the full list. Common scripts executed with `npm run <script-name>` or `npx <command>` for CLIs include:)
 
-*   `pnpm dev`: Starts the development server.
-*   `pnpm build`: Builds the application for production.
-*   `pnpm start`: Starts a production server (after `pnpm build`).
-*   `pnpm lint`: Lints the codebase (if configured).
-*   `pnpm prisma studio`: Opens Prisma Studio to view and manage your database.
-*   `pnpm prisma migrate dev`: Creates and applies new database migrations.
-*   `pnpm prisma generate`: Generates/updates the Prisma Client.
+*   `npm run dev`: Starts the development server.
+*   `npm run build`: Builds the application for production.
+*   `npm run start`: Starts a production server (after `npm run build`).
+*   `npm run lint`: Lints the codebase (if configured).
+*   `npx prisma studio`: Opens Prisma Studio to view and manage your database.
+*   `npx prisma migrate dev`: Creates and applies new database migrations.
+*   `npx prisma generate`: Generates/updates the Prisma Client.
 
 ## Project Structure Overview
 
@@ -122,7 +119,8 @@ plotnotes/
 ├── .gitignore            # Specifies intentionally untracked files that Git should ignore
 ├── next.config.mjs       # Next.js configuration file
 ├── package.json          # Project metadata, dependencies, and scripts
-├── pnpm-lock.yaml        # PNPM lock file for precise dependency versions
+├── package-lock.json     # NPM lock file for precise dependency versions
+├── pnpm-lock.yaml        # (Consider removing if exclusively using npm to avoid confusion)
 ├── README.md             # This file: project overview and setup instructions
 ├── tailwind.config.ts    # Tailwind CSS configuration
 └── tsconfig.json         # TypeScript configuration
