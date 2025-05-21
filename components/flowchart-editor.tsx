@@ -36,6 +36,7 @@ interface FlowchartEditorProps {
   campaignId?: number;
   initialName?: string;
   onSaveSuccess?: (savedFlowchart: any) => void;
+  onFlowchartLoaded?: (loadedFlowchartData: any) => void;
   syncTrigger?: number;
 }
 
@@ -46,11 +47,11 @@ const initialNodes: Node[] = [
   { id: '1', type: 'input', data: { label: 'Start Node' }, position: { x: 250, y: 5 } },
 ];
 
-const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaignId, initialName, onSaveSuccess, syncTrigger }) => {
+const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaignId, initialName, onSaveSuccess, onFlowchartLoaded, syncTrigger }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [flowchartName, setFlowchartName] = useState(initialName || 'New Flowchart');
-  const [rfInstance, setRfInstance] = useState<any>(null);
+  const rfInstance = useRef<any>(null);
   const [currentFlowchartId, setCurrentFlowchartId] = useState<string | undefined>(flowchartId);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [currentNodeLabel, setCurrentNodeLabel] = useState<string>("");
@@ -67,6 +68,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const [sidebarData, setSidebarData] = useState<any>(null); // Using any for now, can be refined
   const [sidebarLoading, setSidebarLoading] = useState<boolean>(false); // For sidebar loading state
   const reactFlowWrapper = useRef<HTMLDivElement>(null); // Ref for the ReactFlow wrapper
+
+  const [loadedCampaignId, setLoadedCampaignId] = useState<number | null>(null);
 
   const nodeDefaultSizes = useMemo(() => ({ 
     locationNode: { width: 120, height: 120 },
@@ -712,11 +715,11 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       setNodes(newNodes);
       setEdges(newEdges);
       
-      if (rfInstance) {
+      if (rfInstance.current) {
         // fitView might be better after nodes are confirmed to be rendered in their new positions
         setTimeout(() => {
-          if (rfInstance) { // Re-check rfInstance just in case
-            rfInstance.fitView({ padding: 0.2, duration: 200 }); 
+          if (rfInstance.current) { // Re-check rfInstance just in case
+            rfInstance.current.fitView({ padding: 0.2, duration: 200 }); 
           }
         }, 50); // Short delay for fitView after nodes are set
       }
@@ -772,10 +775,10 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
       setLastPaneClickFlowPosition(null); // Clear after use
-    } else if (rfInstance) {
+    } else if (rfInstance.current) {
       // Fallback: Place 100px/100px (screen pixels) from viewport top-left
       const screenFallbackOffset = { x: 100, y: 100 }; 
-      newNodePosition = rfInstance.project(screenFallbackOffset);
+      newNodePosition = rfInstance.current.project(screenFallbackOffset);
     } else {
       // Absolute fallback if rfInstance is not available
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
@@ -802,9 +805,9 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
       setLastPaneClickFlowPosition(null); 
-    } else if (rfInstance) {
+    } else if (rfInstance.current) {
       const screenFallbackOffset = { x: 100, y: 100 }; 
-      newNodePosition = rfInstance.project(screenFallbackOffset);
+      newNodePosition = rfInstance.current.project(screenFallbackOffset);
     } else {
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
     }
@@ -829,9 +832,9 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
       setLastPaneClickFlowPosition(null); 
-    } else if (rfInstance) {
+    } else if (rfInstance.current) {
       const screenFallbackOffset = { x: 100, y: 100 }; 
-      newNodePosition = rfInstance.project(screenFallbackOffset);
+      newNodePosition = rfInstance.current.project(screenFallbackOffset);
     } else {
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
     }
@@ -856,9 +859,9 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     if (lastPaneClickFlowPosition) {
       newNodePosition = { ...lastPaneClickFlowPosition }; 
       setLastPaneClickFlowPosition(null); 
-    } else if (rfInstance) {
+    } else if (rfInstance.current) {
       const screenFallbackOffset = { x: 100, y: 100 }; 
-      newNodePosition = rfInstance.project(screenFallbackOffset);
+      newNodePosition = rfInstance.current.project(screenFallbackOffset);
     } else {
       newNodePosition = { x: Math.random() * 200, y: Math.random() * 100 };
     }
@@ -907,9 +910,9 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
   const onPaneClick = useCallback((event: React.MouseEvent) => {
     setSelectedNode(null);
-    if (rfInstance && event.target === event.currentTarget) { // Ensure the click is on the pane itself
+    if (rfInstance.current && event.target === event.currentTarget) { // Ensure the click is on the pane itself
       const pane = event.currentTarget.getBoundingClientRect();
-      const projectedPosition = rfInstance.project({
+      const projectedPosition = rfInstance.current.project({
         x: event.clientX - pane.left,
         y: event.clientY - pane.top,
       });
@@ -925,6 +928,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   }, [rfInstance, setSelectedNode, setLastPaneClickFlowPosition]);
 
   const loadFlowchart = useCallback(async (idToLoad: string) => {
+    if (!idToLoad) return; // Should not happen if called correctly
+    setSaveState('idle');
     try {
       const response = await fetch(`/api/flowcharts/${idToLoad}`);
       if (!response.ok) {
@@ -932,59 +937,83 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         throw new Error(errorData.error || `Failed to load flowchart: ${response.statusText}`);
       }
       const flowchart = await response.json();
-      if (flowchart && flowchart.data && flowchart.data.nodes) {
-        const loadedNodes = flowchart.data.nodes || [];
-        setNodes(loadedNodes);
-        setEdges(flowchart.data.edges || []);
-        setFlowchartName(flowchart.name || 'Flowchart');
-        setCurrentFlowchartId(flowchart.id);
-
-        // Update the global id counter based on loaded nodes
-        let maxId = -1;
-        loadedNodes.forEach((node: Node) => {
-          if (node.id.startsWith('dndnode_')) {
-            const numPart = parseInt(node.id.substring('dndnode_'.length), 10);
-            if (!isNaN(numPart) && numPart > maxId) {
-              maxId = numPart;
-            }
-          }
-        });
-        id = maxId + 1; // Set the global id to be one greater than the max found
-
-        // Always fit view after loading, do not restore saved viewport for now
-        if (rfInstance) {
-          setTimeout(() => {
-            if (rfInstance) { // Re-check rfInstance as it's in a timeout
-              rfInstance.fitView({ padding: 0.2, duration: 200 });
-            }
-          }, 100); // 100ms delay
+      if (flowchart && flowchart.data) {
+        const { nodes: loadedNodes, edges: loadedEdges, viewport } = flowchart.data;
+        setNodes(loadedNodes || initialNodes); // Fallback to initialNodes if loadedNodes is null/undefined
+        setEdges(loadedEdges || []);
+        if (rfInstance.current && viewport) {
+          rfInstance.current.setViewport(viewport);
+        }
+        setFlowchartName(flowchart.name || (initialName || 'New Flowchart'));
+        setCurrentFlowchartId(flowchart.id); // Ensure currentFlowchartId is the loaded one
+        setLoadedCampaignId(flowchart.campaignId || null);
+        if (onFlowchartLoaded) {
+          onFlowchartLoaded(flowchart);
         }
       } else {
-        console.error('Loaded flowchart data is not in the expected format:', flowchart);
-        throw new Error('Flowchart data is malformed.');
+        // Case: Flowchart exists in DB (has idToLoad) but has no data or data is empty/invalid
+        // This could be an old flowchart or one saved in a bad state.
+        // Initialize with default nodes/edges but keep the existing ID and name if available.
+        toast("Flowchart data missing or invalid, starting with a default layout.");
+        setNodes(initialNodes);
+        setEdges([]);
+        setFlowchartName( (flowchart && flowchart.name) || initialName || 'New Flowchart');
+        // currentFlowchartId is already idToLoad
+        setLoadedCampaignId( (flowchart && flowchart.campaignId) || campaignId || null);
+        if (onFlowchartLoaded) {
+          onFlowchartLoaded({ 
+            id: idToLoad,
+            name: (flowchart && flowchart.name) || initialName || 'New Flowchart',
+            campaignId: (flowchart && flowchart.campaignId) || campaignId,
+            nodes: initialNodes, 
+            edges: [] 
+          });
+        }
       }
     } catch (error: any) {
       console.error('Error loading flowchart:', error);
       toast.error(error.message || 'Error loading flowchart. See console for details.');
-      // Initialize with default on error
       setNodes(initialNodes);
       setEdges([]);
       setFlowchartName(initialName || 'New Flowchart (load error)');
+      setLoadedCampaignId(null);
     }
-  }, [rfInstance, setNodes, setEdges, setFlowchartName, setCurrentFlowchartId, initialName, initialNodes]);
+  }, [flowchartId, initialName, campaignId, setNodes, setEdges, setFlowchartName, onFlowchartLoaded]);
 
+  // Effect for loading flowchart data or setting up a new one
   useEffect(() => {
-    if (blockLoadAfterSyncRef.current) {
-      blockLoadAfterSyncRef.current = false; // Consume the flag, don't load this cycle
-      return;
+    if (!currentFlowchartId) {
+      // NEW FLOWCHART LOGIC
+      setNodes(initialNodes);
+      setEdges([]);
+      setFlowchartName(initialName || 'New Flowchart');
+      setCurrentFlowchartId(undefined); // Explicitly ensure it's undefined
+      setLoadedCampaignId(campaignId || null); 
+      if (onFlowchartLoaded) {
+        onFlowchartLoaded({ 
+          name: initialName || 'New Flowchart', 
+          campaignId: campaignId, 
+          nodes: initialNodes, 
+          edges: [] 
+        });
+      }
+      // Important: Early return for new flowchart setup
+      return; 
     }
-    if (flowchartId) {
-      loadFlowchart(flowchartId);
+
+    // EXISTING FLOWCHART LOGIC (currentFlowchartId is present)
+    if (!blockLoadAfterSyncRef.current) {
+      loadFlowchart(currentFlowchartId);
+    } else {
+      // Reset the flag if a load was blocked by sync
+      blockLoadAfterSyncRef.current = false;
     }
-  }, [flowchartId, loadFlowchart]); // Removed blockLoadAfterSync from deps, ref changes don't trigger effect
+  }, [currentFlowchartId, initialName, campaignId, flowchartId, loadFlowchart, onFlowchartLoaded, setNodes, setEdges, setFlowchartName, setCurrentFlowchartId, setLoadedCampaignId]);
 
   const saveFlowchart = async () => {
-    if (!campaignId && !currentFlowchartId) {
+    const currentCampaignId = flowchartId ? loadedCampaignId : campaignId;
+
+    if (!currentCampaignId && !currentFlowchartId) {
       toast.error('Cannot save: No campaign context or existing flowchart ID.');
       setSaveState('error');
       setSaveMessage('Cannot save: No campaign context or existing flowchart ID.');
@@ -992,27 +1021,25 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     }
 
     setSaveState('saving');
-    setSaveMessage(''); // Clear previous messages
+    setSaveMessage('');
 
-    const viewport = rfInstance?.getViewport();
+    const viewport = rfInstance.current?.getViewport();
     const flowchartData = {
       nodes,
       edges,
-      viewport, // Save viewport for consistent loading
+      viewport,
     };
 
     try {
       let response;
       if (currentFlowchartId) {
-        // Update existing flowchart
         response = await fetch(`/api/flowcharts/${currentFlowchartId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: flowchartName, data: flowchartData }),
+          body: JSON.stringify({ name: flowchartName, data: flowchartData, campaignId: currentCampaignId }),
         });
-      } else if (campaignId) {
-        // Create new flowchart
-        response = await fetch(`/api/campaigns/${campaignId}/flowcharts`, {
+      } else if (currentCampaignId) {
+        response = await fetch(`/api/campaigns/${currentCampaignId}/flowcharts`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: flowchartName, data: flowchartData }),
@@ -1026,6 +1053,9 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
       const savedFlowchart = await response.json();
       setCurrentFlowchartId(savedFlowchart.id);
+      if (!flowchartId && savedFlowchart.campaignId) {
+        setLoadedCampaignId(savedFlowchart.campaignId);
+      }
       toast.success('Flowchart saved successfully!');
       setSaveState('success');
       setSaveMessage('Saved successfully!');
@@ -1062,7 +1092,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     (event: React.DragEvent) => {
       event.preventDefault();
 
-      if (!rfInstance || !reactFlowWrapper.current) {
+      if (!rfInstance.current || !reactFlowWrapper.current) {
         return;
       }
 
@@ -1090,7 +1120,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       }
       
       // Adjust position to be relative to the React Flow pane
-      const position = rfInstance.project({
+      const position = rfInstance.current.project({
         x: event.clientX - reactFlowBounds.left,
         y: event.clientY - reactFlowBounds.top,
       });
@@ -1113,6 +1143,35 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     },
     [rfInstance, setNodes, nodeDefaultSizes] // Correct: nodeDefaultSizes is in scope and included in deps
   );
+
+  // Effect to update currentFlowchartId if the prop changes (e.g., navigating between editors)
+  useEffect(() => {
+    setCurrentFlowchartId(flowchartId);
+  }, [flowchartId]);
+
+  useEffect(() => {
+    if (rfInstance.current && !currentFlowchartId) {
+      // For new flowcharts, ensure fitView is called once instance is available
+      const timer = setTimeout(() => {
+        if (rfInstance.current) {
+          rfInstance.current.fitView();
+          console.log("[FlowchartEditor] fitView() called for new flowchart.");
+        }
+      }, 100); // Small delay to ensure canvas is ready
+      return () => clearTimeout(timer);
+    }
+  }, [rfInstance.current, currentFlowchartId]); // Rerun if instance or ID changes
+
+  // ADDED CONSOLE LOGS FOR DIAGNOSTICS
+  if (typeof window !== 'undefined') { // Ensure logs run only client-side
+    console.log("[FlowchartEditor] Rendering Details:");
+    console.log("  - flowchartId (prop):", flowchartId);
+    console.log("  - currentFlowchartId (state):", currentFlowchartId);
+    console.log("  - campaignId (prop):", campaignId);
+    console.log("  - initialNodes (constant):", JSON.stringify(initialNodes));
+    console.log("  - nodes (state before return):", JSON.stringify(nodes));
+    console.log("  - flowchartViewKey (state):", flowchartViewKey);
+  }
 
   return (
     <div style={{ height: '100%', width: '100%' }} className="bg-background dark:bg-stone-900/50 flex flex-col">
@@ -1190,7 +1249,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             isValidConnection={isValidConnection}
             onNodeClick={onNodeClick}
             onPaneClick={onPaneClick}
-            onInit={setRfInstance}
+            onInit={(instance) => rfInstance.current = instance}
             onDragOver={onDragOver}
             onDrop={onDrop}
             nodeTypes={nodeTypes}

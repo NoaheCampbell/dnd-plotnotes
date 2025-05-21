@@ -6,7 +6,14 @@ import { useState, useEffect } from "react";
 import { entitiesConfig } from "@/lib/entities-config";
 import GenericEntityForm from "@/components/generic-entity-form";
 import { getFullEntityConfig } from "@/lib/get-full-entity-config";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import {
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter, 
+  DialogClose 
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,8 +26,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import FlowchartEditor from "@/components/flowchart-editor";
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 // Helper to robustly stringify any value for rendering
 function renderValue(val: any): string {
@@ -50,6 +57,7 @@ export default function CampaignDetailsClient({
   encounters: any[];
   campaigns: any[];
 }) {
+  const router = useRouter();
   // State for add modals and edit/delete modals per section
   const [open, setOpen] = useState<null | string>(null);
   const [editEntity, setEditEntity] = useState<{ [key: string]: any }>({});
@@ -67,8 +75,6 @@ export default function CampaignDetailsClient({
   });
   const [flowcharts, setFlowcharts] = useState<any[]>([]);
   const [loadingFlowcharts, setLoadingFlowcharts] = useState(true);
-  const [showFlowchartEditor, setShowFlowchartEditor] = useState(false);
-  const [editingFlowchart, setEditingFlowchart] = useState<any | null>(null);
   const [flowchartToDelete, setFlowchartToDelete] = useState<any | null>(null);
   const [flowchartSyncTrigger, setFlowchartSyncTrigger] = useState(0);
 
@@ -83,11 +89,13 @@ export default function CampaignDetailsClient({
             setFlowcharts(data);
           } else {
             console.error("Failed to fetch flowcharts");
-            setFlowcharts([]); // Set to empty on error
+            setFlowcharts([]);
+            toast.error("Failed to load flowcharts for this campaign.");
           }
         } catch (error) {
           console.error("Error fetching flowcharts:", error);
-          setFlowcharts([]); // Set to empty on error
+          setFlowcharts([]);
+          toast.error("An error occurred while fetching flowcharts.");
         } finally {
           setLoadingFlowcharts(false);
         }
@@ -124,55 +132,39 @@ export default function CampaignDetailsClient({
           }
         });
 
-        // Special handling for encounters to map fields correctly
         if (section === 'encounters') {
-          // Assuming entityToEdit.location from DB stores the location ID for the encounter
           if (entityToEdit.location !== undefined) {
             plainDataEntity.campaign_location_id = entityToEdit.location;
-            // If 'location' was also a configured field and copied above, this will override it, which is fine.
-            // If 'campaign_location_id' was somehow already on entityToEdit, this ensures it uses entityToEdit.location.
           } else if (plainDataEntity.campaign_location_id === undefined) {
-            // If entityToEdit.location is undefined and campaign_location_id wasn't found by direct property copy
             console.warn("Encounter entityToEdit is missing 'location' field for 'campaign_location_id'");
-            plainDataEntity.campaign_location_id = ''; // Default to empty if not found
+            plainDataEntity.campaign_location_id = ''; 
           }
-
-          // Assuming entityToEdit.npcs is an array of related NPC objects (e.g., from a Prisma include)
-          // Or, it might be entityToEdit.npc_ids if the API already transformed it.
-          // For now, let's check common patterns for relational data.
-          if (Array.isArray(entityToEdit.npcs)) { // If 'npcs' is an array of NPC objects
+          if (Array.isArray(entityToEdit.npcs)) { 
             plainDataEntity.npc_ids = entityToEdit.npcs.map((npc: any) => String(npc.id));
-          } else if (Array.isArray(entityToEdit.npc_ids)) { // If 'npc_ids' is already an array of IDs
+          } else if (Array.isArray(entityToEdit.npc_ids)) { 
              plainDataEntity.npc_ids = entityToEdit.npc_ids.map(String);
           } else if (plainDataEntity.npc_ids === undefined) {
-            // If entityToEdit.npcs is not an array and npc_ids wasn't found by direct property copy
             console.warn("Encounter entityToEdit does not have an 'npcs' array or 'npc_ids' array for NPC selection.");
-            plainDataEntity.npc_ids = []; // Default to empty array
+            plainDataEntity.npc_ids = []; 
           }
         }
-
-        // For notes, ensure entity_links are carried over
         if (section === 'notes' && entityToEdit.hasOwnProperty('entity_links')) {
           plainDataEntity.entity_links = entityToEdit.entity_links;
         }
-        // Also carry over the 'campaigns' object if present (for notes, used in API response)
         if (entityToEdit.hasOwnProperty('campaigns')) {
             plainDataEntity.campaigns = entityToEdit.campaigns;
         }
-
       } else {
         console.error(`Config not found for section ${section}. Falling back to shallow clone for entity:`, entityToEdit);
-        // Fallback ensures entity_links would be copied if no config.fields logic runs
         Object.assign(plainDataEntity, { ...entityToEdit }); 
       }
       
       setEditEntity(prev => ({ ...prev, [section]: plainDataEntity }));
 
     } else {
-       // Default entity for creation, e.g., for sessions
        if (!campaign || !campaign.id) {
          toast.error("Cannot add new item: Campaign data is not fully loaded.");
-         setOpen(null); // Ensure modal doesn't inadvertently stay open
+         setOpen(null); 
          return;
        }
        const defaultEntity: { [key: string]: any } = { campaign_id: campaign.id };
@@ -189,7 +181,8 @@ export default function CampaignDetailsClient({
   };
 
   const triggerFlowchartSync = () => {
-    setFlowchartSyncTrigger(prev => prev + 1);
+    console.log("Flowchart sync triggered from campaign details. This might need review.");
+    setFlowchartSyncTrigger(prev => prev + 1); 
   };
 
   const handleEntityUpdateSuccess = (sectionKey: string, updatedEntity: any, isNew: boolean) => {
@@ -204,12 +197,11 @@ export default function CampaignDetailsClient({
         const updatedItems = currentSectionItems.map(item => 
           item.id === updatedEntity.id ? updatedEntity : item
         );
-        // Also update the editEntity state if the updated entity is the one being edited
         setEditEntity(prevEditEntity => {
           if (prevEditEntity[sectionKey] && prevEditEntity[sectionKey].id === updatedEntity.id) {
             return {
               ...prevEditEntity,
-              [sectionKey]: updatedEntity, // Use the full updated entity from API response
+              [sectionKey]: updatedEntity,
             };
           }
           return prevEditEntity;
@@ -220,42 +212,28 @@ export default function CampaignDetailsClient({
         };
       }
     });
-    triggerFlowchartSync();
-    // We don't call closeModal() here immediately if it's an edit, 
-    // allowing the form to reflect the updated data if needed by the user.
-    // The form's own submit handler calls setOpen(false) which then calls closeModal via props.
-    // However, for a consistent UX where the dialog always closes on success:
-    if (!isNew) {
-        // If it was an edit, GenericEntityForm calls setOpen(false) which calls closeModal.
-        // If we want to ensure the modal closes from here for an update too:
-        // closeModal(); // This might be redundant if GenericEntityForm handles it.
+    if (isNew) {
+      closeModal();
     } else {
-        closeModal(); // Close for new entities
+      // For edits, GenericEntityForm calls setOpen(false) which calls closeModal via props.
+      // No explicit closeModal() here to allow form to stay if needed, though current setup closes it.
     }
   };
 
-  const handleFlowchartCreatedOrUpdated = (flowchart: any) => {
-    setFlowcharts(prev => {
-      const index = prev.findIndex(f => f.id === flowchart.id);
-      if (index > -1) {
-        const updated = [...prev];
-        updated[index] = flowchart;
-        return updated;
-      }
-      return [...prev, flowchart];
-    });
-    // setShowFlowchartEditor(false); // Don't close on save
-    // setEditingFlowchart(null); // Keep editing the same flowchart unless explicitly closed
-  };
-
   const handleNewFlowchart = () => {
-    setEditingFlowchart({ name: "New Flowchart" }); // No ID for new
-    setShowFlowchartEditor(true);
+    if (campaign && campaign.id) {
+      router.push(`/new-flowchart/${campaign.id}`);
+    } else {
+      toast.error("Campaign ID is missing. Cannot create new flowchart.");
+    }
   };
 
   const handleEditFlowchart = (flowchart: any) => {
-    setEditingFlowchart(flowchart);
-    setShowFlowchartEditor(true);
+    if (flowchart && flowchart.id) {
+      router.push(`/flowchart-editor/${flowchart.id}`);
+    } else {
+      toast.error("Flowchart ID is missing. Cannot edit flowchart.");
+    }
   };
   
   const handleDeleteFlowchart = async (flowchartId: string) => {
@@ -286,44 +264,46 @@ export default function CampaignDetailsClient({
   ];
 
   async function handleDelete(sectionKey: string, entityToDelete: any) {
-    try {
-      const response = await fetch(`/api/${sectionKey}/${entityToDelete.id}`, { method: "DELETE" });
-
-      if (response.ok) {
-        // Update local state to remove the deleted entity
-        setSectionData(prevSectionData => ({
-          ...prevSectionData,
-          [sectionKey]: prevSectionData[sectionKey].filter(item => item.id !== entityToDelete.id),
-        }));
-        toast.success(`${entityToDelete.name || entityToDelete.title || 'Entity'} deleted successfully.`);
-        triggerFlowchartSync();
-      } else {
-        // Handle errors (e.g., show an error message)
-        const errorData = await response.json().catch(() => ({ message: 'Failed to delete entity. Unknown error.' }));
-        console.error(`Failed to delete ${sectionKey}:`, response.status, errorData);
-        alert(`Failed to delete ${entityToDelete.name || entityToDelete.title || 'Entity'}. Error: ${errorData.message || response.statusText}`);
-      }
-    } catch (error) {
-      console.error(`Error during deletion of ${sectionKey}:`, error);
-      alert(`An unexpected error occurred while deleting ${entityToDelete.name || entityToDelete.title || 'Entity'}. See console for details.`);
+    const config = sections.find((s) => s.key === sectionKey)?.config;
+    if (!config || !entityToDelete || !entityToDelete.id) {
+      console.error(`Invalid arguments for handleDelete: sectionKey=${sectionKey}, entityId=${entityToDelete?.id}`);
+      toast.error(`Error preparing to delete: Invalid data.`);
+      return;
     }
-    // window.location.reload(); // Removed the immediate reload
+    try {
+      const response = await fetch(`${config.api}/${entityToDelete.id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setSectionData((prevData) => ({
+          ...prevData,
+          [sectionKey]: prevData[sectionKey].filter(
+            (item) => item.id !== entityToDelete.id
+          ),
+        }));
+        toast.success(`${config.label.slice(0, -1)} deleted successfully.`);
+      } else {
+        const errorData = await response.json().catch(() => ({})); 
+        console.error(`Failed to delete ${config.label.slice(0, -1)}:`, response.status, errorData);
+        toast.error(errorData.error || `Failed to delete ${config.label.slice(0, -1)}.`);
+      }
+    } catch (error: any) { 
+      console.error(`Error deleting ${config.label.slice(0, -1)}:`, error);
+      toast.error(error.message || `An unexpected error occurred while deleting the ${config.label.slice(0, -1)}.`);
+    } finally {
+      setDeleteEntity(prev => ({ ...prev, [sectionKey]: null }));
+    }
   }
 
   async function handleDeleteWrapper(sectionKey: string, entity: any) {
-    setDeleteEntity(prev => ({ ...prev, [sectionKey]: entity }));
+    setDeleteEntity(prev => ({...prev, [sectionKey]: entity}));
   }
 
   async function confirmDelete(sectionKey: string) {
-    const entityToDelete = deleteEntity[sectionKey];
-    if (!entityToDelete) return;
-
-    await handleDelete(sectionKey, entityToDelete);
-    setDeleteEntity(prev => {
-      const newState = {...prev};
-      delete newState[sectionKey];
-      return newState;
-    });
+    const entity = deleteEntity[sectionKey];
+    if (entity) {
+      await handleDelete(sectionKey, entity);
+    }
   }
 
   return (
@@ -462,61 +442,58 @@ export default function CampaignDetailsClient({
         </AccordionItem>
       </Accordion>
 
-      {/* Flowchart Editor Dialog */}
-      {showFlowchartEditor && (
-        <Dialog open={showFlowchartEditor} onOpenChange={(isOpen) => {
-          if (!isOpen) {
-            setShowFlowchartEditor(false);
-            setEditingFlowchart(null);
-          }
-        }}>
-          <DialogContent className="max-w-6xl h-[95vh] flex flex-col bg-parchment-light dark:bg-stone-800 border-amber-800/20 p-0">
-            <DialogHeader className="p-4 border-b border-amber-800/20">
-              <DialogTitle className="text-amber-900 dark:text-amber-200 font-heading text-xl">
-                {editingFlowchart?.id ? `Edit Flowchart: ${editingFlowchart.name}` : "Create New Flowchart"}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="flex-grow overflow-hidden p-1"> {/* Added p-1 to prevent scrollbar overlap with border if any */}
-              <FlowchartEditor
-                campaignId={campaign.id}
-                flowchartId={editingFlowchart?.id}
-                initialName={editingFlowchart?.name}
-                onSaveSuccess={handleFlowchartCreatedOrUpdated}
-                syncTrigger={flowchartSyncTrigger}
-                key={editingFlowchart?.id || 'new-flowchart-' + Date.now()} // Ensure unique key
-              />
-            </div>
-            {/* Footer can be added if explicit save/close from dialog is needed, but editor has its own save */}
-            {/* <DialogFooter className="p-4 border-t border-amber-800/20">
-              <Button variant="outline" onClick={() => { setShowFlowchartEditor(false); setEditingFlowchart(null); }}>Close</Button>
-            </DialogFooter> */}
-          </DialogContent>
-        </Dialog>
+      {/* Generic Entity Form Modal for other entities */}
+      {open && sections.find(s => s.key === open) && (
+        <GenericEntityForm
+          open={!!open}
+          setOpen={(isOpen) => !isOpen && closeModal()}
+          config={getFullEntityConfig(sections.find(s => s.key === open)!.config, `/${open}`, campaigns)}
+          onCreated={(item) => {
+            const sectionKey = open!;
+            const isNew = !editEntity[sectionKey];
+            handleEntityUpdateSuccess(sectionKey, item, isNew);
+          }}
+          campaigns={campaigns}
+          entity={editEntity[open!] || { campaign_id: campaign.id }}
+          availableLocations={locations} 
+          allNpcs={sectionData.npcs}     
+          allItems={sectionData.items}
+          allEncounters={sectionData.encounters}
+        />
       )}
 
-      {/* Delete Flowchart Confirmation Dialog */}
-      {flowchartToDelete && (
-        <AlertDialog open={!!flowchartToDelete} onOpenChange={() => setFlowchartToDelete(null)}>
+      {/* Delete Confirmation Modals for generic entities */}
+      {sections.map(section => deleteEntity[section.key] && (
+        <AlertDialog key={`delete-alert-${section.key}`} open={!!deleteEntity[section.key]} onOpenChange={(isOpen) => !isOpen && setDeleteEntity(prev => ({...prev, [section.key]: null}))}>
           <AlertDialogContent className="bg-parchment-light dark:bg-stone-800 border-amber-800/20">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-amber-900 dark:text-amber-200">Are you sure you want to delete "{flowchartToDelete.name}"?</AlertDialogTitle>
-              <AlertDialogDescription className="text-amber-700 dark:text-amber-400">
-                This action cannot be undone. This will permanently delete the flowchart.
+              <AlertDialogTitle className="text-amber-900 dark:text-amber-200">Confirm Deletion</AlertDialogTitle>
+              <AlertDialogDescription className="text-amber-800 dark:text-amber-400">
+                Are you sure you want to delete this {section.config.label.slice(0, -1).toLowerCase()}? This action cannot be undone.
+                Name: {deleteEntity[section.key]?.name || deleteEntity[section.key]?.title || 'N/A'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel 
-                onClick={() => setFlowchartToDelete(null)} 
-                className="text-amber-900 dark:text-amber-200 border-amber-800/30"
-              >
-                Cancel
-              </AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={() => handleDeleteFlowchart(flowchartToDelete.id)} 
-                className="bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-800"
-              >
-                Delete
-              </AlertDialogAction>
+              <AlertDialogCancel className="text-amber-800 dark:text-amber-300 border-amber-700 hover:bg-amber-100 dark:border-amber-500 dark:hover:bg-stone-700" onClick={() => setDeleteEntity(prev => ({...prev, [section.key]: null}))}>Cancel</AlertDialogCancel>
+              <AlertDialogAction className="bg-red-800 hover:bg-red-700 text-amber-100" onClick={() => confirmDelete(section.key)}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ))}
+
+      {/* Delete Flowchart Confirmation Dialog */}
+      {flowchartToDelete && (
+        <AlertDialog open={!!flowchartToDelete} onOpenChange={(isOpen) => !isOpen && setFlowchartToDelete(null)}>
+          <AlertDialogContent className="bg-parchment-light dark:bg-stone-800 border-amber-800/20">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-amber-900 dark:text-amber-200">Confirm Deletion</AlertDialogTitle>
+              <AlertDialogDescription className="text-amber-800 dark:text-amber-400">
+                Are you sure you want to delete the flowchart "{flowchartToDelete.name}"? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="text-amber-800 dark:text-amber-300 border-amber-700 hover:bg-amber-100 dark:border-amber-500 dark:hover:bg-stone-700" onClick={() => setFlowchartToDelete(null)}>Cancel</AlertDialogCancel>
+              <AlertDialogAction className="bg-red-800 hover:bg-red-700 text-amber-100" onClick={() => handleDeleteFlowchart(flowchartToDelete.id)}>Delete</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
