@@ -445,7 +445,11 @@ export default function CampaignDetailsClient({
       {open && sections.find(s => s.key === open) && (
         <GenericEntityForm
           open={!!open}
-          setOpen={(isOpen) => !isOpen && closeModal()}
+          setOpen={(isOpen) => {
+            if (!isOpen) {
+              closeModal();
+            }
+          }}
           config={getFullEntityConfig(sections.find(s => s.key === open)!.config, `/${open}`, campaigns)}
           onCreated={(item) => {
             const sectionKey = open!;
@@ -453,11 +457,12 @@ export default function CampaignDetailsClient({
             handleEntityUpdateSuccess(sectionKey, item, isNew);
           }}
           campaigns={campaigns}
-          entity={editEntity[open!] || { campaign_id: campaign.id }}
-          availableLocations={locations} 
-          allNpcs={sectionData.npcs}     
+          entity={editEntity[open]}
+          availableLocations={sectionData.locations}
+          allNpcs={sectionData.npcs}
           allItems={sectionData.items}
           allEncounters={sectionData.encounters}
+          allLocations={sections.find(s => s.key === open)?.config.api === '/api/locations' ? locations : undefined}
         />
       )}
 

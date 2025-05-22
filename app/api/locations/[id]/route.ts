@@ -33,6 +33,17 @@ export async function PATCH(
       dataToUpdate.next_location_id = parseInt(next_location_id_str, 10)
     }
 
+    const sequential_next_location_ids_str = formData.get("sequential_next_location_ids") as string | null
+    if (sequential_next_location_ids_str && sequential_next_location_ids_str.trim() !== "") {
+      dataToUpdate.sequential_next_location_ids = sequential_next_location_ids_str
+        .split(",")
+        .map((id) => parseInt(id.trim(), 10))
+        .filter(id => !isNaN(id)); // Ensure only valid numbers are included
+    } else if (formData.has("sequential_next_location_ids")) { 
+      // If the field is present but empty (or only whitespace), set to empty array
+      dataToUpdate.sequential_next_location_ids = [];
+    }
+
     const mapFile = formData.get("map") as File | null
     if (mapFile && mapFile.size > 0) {
       const map_url = await uploadImageToCloudinary(mapFile)

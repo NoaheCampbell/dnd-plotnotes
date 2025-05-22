@@ -15,5 +15,13 @@ export default async function LocationDetailsPage({ params }: LocationPageProps)
     where: { id: Number(awaitedParams.id) },
   })
   if (!location) return notFound()
-  return <GenericEntityDetailsClient entity={location} config={entitiesConfig.locations} apiPath="/locations" />
+
+  // Fetch all locations to be available for linking
+  const allLocationsForLinking = await prisma.locations.findMany({
+    orderBy: {
+      name: 'asc',
+    },
+  });
+
+  return <GenericEntityDetailsClient entity={location} config={entitiesConfig.locations} apiPath="/locations" allLocationsForLinking={allLocationsForLinking} />
 } 

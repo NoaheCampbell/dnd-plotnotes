@@ -85,7 +85,8 @@ model locations {
   encounters  encounters[]
 
   // Fields for location sequencing
-  next_location_id Int?      @unique // ID of the next location in a sequence
+  sequential_next_location_ids Int[] // Array of IDs for the next locations in sequence
+  next_location_id Int?      @unique // ID of the next location in a sequence - RETAIN FOR NOW, MAYBE REMOVE LATER
   next_location    locations?  @relation("LocationSequence", fields: [next_location_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   previous_location locations? @relation("LocationSequence") // Inverse relation: this location can be a next_location for another one
 }

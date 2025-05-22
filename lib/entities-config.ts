@@ -79,6 +79,7 @@ export const entitiesConfig = {
       { name: "type", label: "Type", type: "text" },
       { name: "description", label: "Description", type: "text" },
       { name: "map", label: "Map", type: "file" },
+      { name: "sequential_next_location_ids", label: "Sequential Next Locations", type: "hidden" }
     ],
     imageField: "map_url",
     descriptionField: "type",

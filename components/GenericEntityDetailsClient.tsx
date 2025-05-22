@@ -16,6 +16,7 @@ interface GenericEntityDetailsClientProps {
   allNpcs?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
   allItems?: Array<{ id: any; name: string; campaign_id?: any; [key: string]: any; }>;
   allEncounters?: Array<{ id: any; title: string; campaign_id?: any; [key: string]: any; }>;
+  allLocationsForLinking?: Array<{ id: number | string; name: string; [key: string]: any; }>;
 }
 
 export default function GenericEntityDetailsClient({
@@ -27,6 +28,7 @@ export default function GenericEntityDetailsClient({
   allNpcs,
   allItems,
   allEncounters,
+  allLocationsForLinking,
 }: GenericEntityDetailsClientProps) {
   const fullConfig = getFullEntityConfig(config, apiPath, campaigns);
   const [editOpen, setEditOpen] = useState(false);
@@ -46,6 +48,8 @@ export default function GenericEntityDetailsClient({
     window.location.href = `/${entityType}`;
   }
 
+  const allLocationsForForm = config.api === '/api/locations' ? allLocationsForLinking : undefined;
+  
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <Card className="max-w-lg w-full border-amber-800/30 bg-parchment-light dark:bg-stone-800 dark:border-amber-800/20 relative">
@@ -117,6 +121,7 @@ export default function GenericEntityDetailsClient({
           allNpcs={allNpcs}
           allItems={allItems}
           allEncounters={allEncounters}
+          allLocations={allLocationsForForm}
         />
         {/* Delete Modal */}
         <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

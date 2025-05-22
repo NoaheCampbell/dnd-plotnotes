@@ -13,6 +13,7 @@ import ReactFlow, {
   type Viewport,
   type NodeProps,
   ReactFlowProvider,
+  MarkerType
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { Input } from "@/components/ui/input";
@@ -74,6 +75,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
   const [playMode, setPlayMode] = useState(false);
   const [currentPlayNode, setCurrentPlayNode] = useState<Node | null>(null);
+  const [playHistory, setPlayHistory] = useState<string[]>([]); // For back button
 
   const nodeDefaultSizes = useMemo(() => ({ 
     locationNode: { width: 120, height: 120 },
@@ -228,13 +230,15 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const TARGETS_X = SOURCES_X + (nodeDefaultSize.width + HORIZONTAL_SPACING);
 
       // Initialize yTrackers - these will be updated after Start Node is positioned
-      const yTrackers = {
-        unlinked: yOffset, 
-        sources: yOffset,
-        targets: yOffset,
-        notesGeneral: yOffset,
-      };
-      
+      const yColumnTrackers: { [key: string]: number } = {};
+      const yBelowStartNode = yOffset + (nodeDefaultSize.height + globalNodeSpacingY);
+      yColumnTrackers[String(TARGETS_X)] = yBelowStartNode;
+      yColumnTrackers[String(UNLINKED_X)] = yBelowStartNode;
+      yColumnTrackers[String(SOURCES_X)] = yBelowStartNode;
+      // Ensure NOTES_X column (if different) is also initialized
+      const NOTES_X = SOURCES_X - (nodeDefaultSizes.noteNode.width + HORIZONTAL_SPACING);
+      yColumnTrackers[String(NOTES_X)] = yBelowStartNode;
+
       const createAndRegisterNode = (nodeId: string, type: string, position: {x: number, y: number}, data: any, style: any) => {
         const node: Node = {
           id: nodeId,
@@ -285,12 +289,14 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
       // --- Initialize Y Trackers based on the Start Node's actual position and height ---
       const actualStartNodeHeight = (startNode.style?.height as number) || startNodeSizeDetails.height;
-      const yBelowStartNode = startNode.position.y + actualStartNodeHeight + globalNodeSpacingY;
 
-      yTrackers.unlinked = yBelowStartNode;
-      yTrackers.sources = yBelowStartNode;
-      yTrackers.targets = yBelowStartNode; // This will be the Y for the first Location/Target linked to StartNode
-      yTrackers.notesGeneral = yBelowStartNode;
+      // Ensure yColumnTrackers are initialized based on the *actual* yBelowStartNode
+      // This must happen AFTER startNode's position is known.
+      const actualYBelowStartNode = startNode.position.y + actualStartNodeHeight + globalNodeSpacingY;
+      yColumnTrackers[String(TARGETS_X)] = actualYBelowStartNode;
+      yColumnTrackers[String(UNLINKED_X)] = actualYBelowStartNode;
+      yColumnTrackers[String(SOURCES_X)] = actualYBelowStartNode;
+      yColumnTrackers[String(NOTES_X)] = actualYBelowStartNode; // NOTES_X is defined in the outer scope
 
 
       const unlinkedNpcData: any[] = [];
@@ -301,24 +307,34 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const locationNodeMapByName = new Map<string, Node>(); // For finding location nodes by name
 
       interface LocationNodeInternal extends Location {
-        children: number[];
+        children: number[]; 
         inDegree: number;
+        sequential_next_location_ids: number[]; 
       }
+
+      // New map to store layout information for children of multi-branch parents
+      const intendedChildLayouts = new Map<number, { parentId: string, x: number, y: number, isMultiBranchChild: boolean }>();
 
       // 1. Process Locations (as Targets)
       // Topological sort for locations based on next_location_id
       const locations = apiData.locations || [];
-      const locationMap = new Map<number, LocationNodeInternal>(locations.map((loc: any) => [loc.id, { ...loc, children: [], inDegree: 0 }]));
+      const locationMap = new Map<number, LocationNodeInternal>(locations.map((loc: any) => [loc.id, { ...loc, children: [], inDegree: 0, sequential_next_location_ids: loc.sequential_next_location_ids || (loc.next_location_id ? [loc.next_location_id] : []) }]));
       const orderedLocations: LocationNodeInternal[] = [];
       
       locations.forEach((loc: any) => {
-        if (loc.next_location_id && locationMap.has(loc.next_location_id)) {
-          locationMap.get(loc.id)!.children.push(loc.next_location_id);
-          locationMap.get(loc.next_location_id)!.inDegree++;
-        }
+        const currentLocData = locationMap.get(loc.id)!;
+        // Use sequential_next_location_ids if available, fallback to next_location_id for children calculation
+        const nextIds = currentLocData.sequential_next_location_ids || [];
+        
+        nextIds.forEach(nextLocId => {
+          if (locationMap.has(nextLocId)) {
+            locationMap.get(loc.id)!.children.push(nextLocId); // children array for topo sort might not be strictly needed if we rely on inDegree directly
+            locationMap.get(nextLocId)!.inDegree++;
+          }
+        });
       });
 
-      const queue = locations.filter((loc: any) => locationMap.get(loc.id)!.inDegree === 0);
+      const queue = Array.from(locationMap.values()).filter(locNode => locNode.inDegree === 0);
       
       while (queue.length > 0) {
         const currentLocId = queue.shift()!.id;
@@ -343,79 +359,148 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         });
       }
       
-      let firstTargetColumnNodeProcessed = false; // To link StartNode to the first location
+      let firstTargetNodeProcessedId: string | null = null; // ADD - To identify the first node linked to StartNode
 
       orderedLocations.forEach((locData: LocationNodeInternal) => {
         const nodeId = `location-${locData.id}`;
         const nodeSize = nodeDefaultSizes.locationNode || nodeDefaultSizes.default;
-        let position: { x: number; y: number };
         
-        if (!firstTargetColumnNodeProcessed && startNode) {
-            // This is the first location node to be placed in the TARGETS_X column.
-            // Position it relative to where yTrackers.targets was initialized (yBelowStartNode).
-            position = { x: TARGETS_X, y: yTrackers.targets };
+        let xPos = TARGETS_X; 
+        let yPos : number | undefined = undefined;
+        let determinedByParentLayout = false;
 
-            const locationNode = createAndRegisterNode(
-              nodeId, 
-              'locationNode', 
-              position, 
-              { label: locData.name || `Location ${locData.id}` }, 
-              { width: nodeSize.width, height: nodeSize.height }
-            );
-            if (locData.name) {
-              locationNodeMapByName.set(locData.name, locationNode);
-            }
+        if (intendedChildLayouts.has(locData.id)) {
+          const layoutInfo = intendedChildLayouts.get(locData.id)!;
+          xPos = layoutInfo.x;
+          yPos = layoutInfo.y; // Use the Y position directly from the parent's calculation
+          determinedByParentLayout = true;
+        }
+        
+        const xKey = String(Math.round(xPos));
 
-            // Connect Start Node to this first location
-            newEdges.push({
-                id: `edge-${startNode.id}-to-${locationNode.id}`,
-                source: startNode.id,
-                target: locationNode.id,
-                sourceHandle: 'bottom',
-                targetHandle: 'top',
-                type: 'straight',
-                animated: false,
-                style: { stroke: '#FFF', strokeWidth: 2, strokeDasharray: '5 5' }, // Style as per existing seq. loc.
-                zIndex: 0,
-            });
-            
-            // Update yTracker for the *next* location in this column
-            yTrackers.targets = position.y + nodeSize.height + globalNodeSpacingY;
-            firstTargetColumnNodeProcessed = true;
-        } else {
-            // Subsequent location nodes in the TARGETS_X column
-            position = { x: TARGETS_X, y: yTrackers.targets };
-            const locationNode = createAndRegisterNode(
-              nodeId, 
-              'locationNode', 
-              position, 
-              { label: locData.name || `Location ${locData.id}` }, 
-              { width: nodeSize.width, height: nodeSize.height }
-            );
-            if (locData.name) {
-              locationNodeMapByName.set(locData.name, locationNode);
+        if (determinedByParentLayout && yPos !== undefined) {
+            // yPos is authoritative from parent. Update column tracker to respect it.
+            // This ensures subsequent nodes in the same X column don't overlap.
+            yColumnTrackers[xKey] = Math.max((yColumnTrackers[xKey] || actualYBelowStartNode), yPos + nodeSize.height + globalNodeSpacingY);
+        } else { 
+            // Not determined by a pre-calculated parent layout from intendedChildLayouts
+            if (xPos === TARGETS_X && firstTargetNodeProcessedId === null && startNode) { // MODIFIED condition
+                yPos = yColumnTrackers[xKey] || actualYBelowStartNode;
+                
+                const position = { x: xPos, y: yPos };
+                const locationNode = createAndRegisterNode(nodeId, 'locationNode', position, { label: locData.name || `Location ${locData.id}`, rawLocationData: locData }, { width: nodeSize.width, height: nodeSize.height });
+                if (locData.name) locationNodeMapByName.set(locData.name, locationNode);
+                firstTargetNodeProcessedId = locationNode.id; // ADD - Store ID of the first processed target node
+                
+                if (startNode) {
+                    newEdges.push({
+                        id: `edge-${startNode.id}-to-${locationNode.id}`,
+                        source: startNode.id, target: locationNode.id, sourceHandle: 'bottom', targetHandle: 'top',
+                        type: 'straight', animated: false, style: { stroke: '#FFF', strokeWidth: 2 }, markerEnd: { type: MarkerType.ArrowClosed, color: '#FFF' }, zIndex: 0,
+                    });
+                }
+                // Update column tracker *after* placing this first node.
+                yColumnTrackers[xKey] = yPos + nodeSize.height + globalNodeSpacingY;
+
+                // If this first locData is a multi-branch parent, calculate layouts for its children
+                if (locData.sequential_next_location_ids && locData.sequential_next_location_ids.length > 1) {
+                    const numBranches = locData.sequential_next_location_ids.length;
+                    const B_OFFSET_X = nodeSize.width + 180; // Reverted to dynamic offset
+                    const groupWidth = (numBranches - 1) * B_OFFSET_X;
+                    const firstBranchX = locationNode.position.x - groupWidth / 2;
+                    const childYPos = locationNode.position.y + ((locationNode.style?.height as number) || nodeSize.height) + globalNodeSpacingY;
+
+                    locData.sequential_next_location_ids.forEach((childId, branchIndex) => {
+                        const childXPos = firstBranchX + branchIndex * B_OFFSET_X;
+                        // if (branchIndex === 0) childXPos -= 200; // Force first child left - REMOVE
+                        // if (branchIndex === 1) childXPos += 200; // Force second child right - REMOVE
+                        intendedChildLayouts.set(childId, { parentId: nodeId, x: childXPos, y: childYPos, isMultiBranchChild: true });
+                    });
+                }
+                return; // This node is done.
+            } else {
+                // General column-based Y for nodes not in intendedChildLayouts and not the first TARGETS_X node
+                yPos = yColumnTrackers[xKey] || actualYBelowStartNode; 
+                yColumnTrackers[xKey] = yPos + nodeSize.height + globalNodeSpacingY;
             }
-            yTrackers.targets += nodeSize.height + globalNodeSpacingY;
+        }
+        
+        // This block handles general node creation for:
+        // 1. Nodes whose layout was determined by 'intendedChildLayouts' (yPos is set, xPos is set)
+        // 2. Nodes not first in TARGETS_X and not in 'intendedChildLayouts' (yPos and xPos are set by column logic above)
+        // Ensure yPos has a value before creating the node.
+        if (yPos === undefined) {
+            console.warn("Sync Layout: yPos is undefined before general node creation for node", nodeId, locData);
+            yPos = yColumnTrackers[xKey] || actualYBelowStartNode; // Fallback yPos 
+            yColumnTrackers[xKey] = yPos + nodeSize.height + globalNodeSpacingY; // update tracker if fallback was used
+        }
+
+        const position = { x: xPos, y: yPos }; 
+        const locationNode = createAndRegisterNode(nodeId, 'locationNode', position, { label: locData.name || `Location ${locData.id}`, rawLocationData: locData }, { width: nodeSize.width, height: nodeSize.height });
+        if (locData.name) locationNodeMapByName.set(locData.name, locationNode);
+
+        // If this locData (which was just placed via the general block) is a multi-branch parent, 
+        // calculate layouts for its children. This covers cases where a multi-branch parent might 
+        // itself have been positioned by intendedChildLayouts or was not the absolute first node.
+        if (locData.sequential_next_location_ids && locData.sequential_next_location_ids.length > 1) {
+            if (nodeId !== firstTargetNodeProcessedId) { 
+                const numBranches = locData.sequential_next_location_ids.length;
+                const B_OFFSET_X = nodeSize.width + 180; // Reverted to dynamic offset
+                const groupWidth = (numBranches - 1) * B_OFFSET_X;
+                const firstBranchX = locationNode.position.x - groupWidth / 2;
+                const childYPos = locationNode.position.y + ((locationNode.style?.height as number) || nodeSize.height) + globalNodeSpacingY;
+
+                locData.sequential_next_location_ids.forEach((childId, branchIndex) => {
+                    const childXPos = firstBranchX + branchIndex * B_OFFSET_X;
+                    // if (branchIndex === 0) childXPos -= 200; // Force first child left - REMOVE
+                    // if (branchIndex === 1) childXPos += 200; // Force second child right - REMOVE
+                    intendedChildLayouts.set(childId, { parentId: nodeId, x: childXPos, y: childYPos, isMultiBranchChild: true });
+                });
+            }
         }
       });
 
-      // Create vertical edges between sequenced locations
-      orderedLocations.forEach((locData: LocationNodeInternal) => {
-        if (locData.next_location_id) {
-          const sourceNodeId = `location-${locData.id}`;
-          const targetNodeId = `location-${locData.next_location_id}`;
-          if (allCreatedNodesMap.has(sourceNodeId) && allCreatedNodesMap.has(targetNodeId)) {
+      // Create edges based on the sequence
+      orderedLocations.forEach(loc => {
+        const sourceNodeId = `location-${loc.id}`;
+        // Ensure the source node itself was created
+        if (!allCreatedNodesMap.has(sourceNodeId)) {
+          console.warn(`Sync: Source location node ${sourceNodeId} not found in allCreatedNodesMap. Skipping edge creation.`);
+          return;
+        }
+
+        // New: Handle multiple sequential next locations
+        if (loc.sequential_next_location_ids && loc.sequential_next_location_ids.length > 0) {
+          loc.sequential_next_location_ids.forEach(nextLocId => {
+            const targetNodeId = `location-${nextLocId}`;
+            if (allCreatedNodesMap.has(targetNodeId)) {
+              newEdges.push({
+                id: `e-${sourceNodeId}-to-${targetNodeId}`,
+                source: sourceNodeId,
+                target: targetNodeId,
+                type: 'straight', 
+                animated: false,
+                style: { strokeWidth: 2, stroke: '#888' },
+                markerEnd: { type: MarkerType.ArrowClosed, color: '#888' },
+              });
+            } else {
+              console.warn(`Sync: Target location node ${targetNodeId} for sequential_next_location_ids not found in allCreatedNodesMap.`);
+            }
+          });
+        } else if (loc.next_location_id) { // Fallback to old single next_location_id if new array is empty/not present
+          const targetNodeId = `location-${loc.next_location_id}`;
+          if (allCreatedNodesMap.has(targetNodeId)) {
             newEdges.push({
-              id: `edge-loc-seq-${locData.id}-${locData.next_location_id}`,
+              id: `e-${sourceNodeId}-to-${targetNodeId}`,
               source: sourceNodeId,
               target: targetNodeId,
-              sourceHandle: 'bottom',
-              targetHandle: 'top',
-              type: 'straight',
+              type: 'straight', 
               animated: false,
-              style: { stroke: '#FFF', strokeWidth: 2, strokeDasharray: '5 5' }, // Dashed white line
-              zIndex: 0, // Ensure it's behind nodes
+              style: { strokeWidth: 2, stroke: '#888' },
+              markerEnd: { type: MarkerType.ArrowClosed, color: '#888' },
             });
+          } else {
+            console.warn(`Sync: Target location node ${targetNodeId} for next_location_id not found in allCreatedNodesMap.`);
           }
         }
       });
@@ -457,19 +542,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
         if (targetLocationNode) {
           let actualY;
+          const targetXKey = String(Math.round(targetLocationNode.position.x));
           if (targetLinkedYTracker.has(targetLocationNode.id)) {
             actualY = targetLinkedYTracker.get(targetLocationNode.id)!;
           } else {
-            actualY = Math.max(targetLocationNode.position.y, yTrackers.sources);
+            actualY = Math.max(targetLocationNode.position.y, (yColumnTrackers[String(SOURCES_X)] || yBelowStartNode));
           }
           position = { x: SOURCES_X, y: actualY };
           
           targetLinkedYTracker.set(targetLocationNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
-          // Log for NPC setting targetLinkedYTracker
-          if (targetLocationNode.data.label === 'dsfsdaf') {
-            
-          }
-          yTrackers.sources = Math.max(yTrackers.sources, actualY + nodeSize.height + globalNodeSpacingY);
+          yColumnTrackers[String(SOURCES_X)] = Math.max((yColumnTrackers[String(SOURCES_X)] || 0), actualY + nodeSize.height + globalNodeSpacingY);
           
           newEdges.push({
             id: `edge-${nodeId}-${targetLocationNode.id}`,
@@ -498,8 +580,8 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       apiData.encounters?.forEach((encData: any) => {
         let currentEncounterNodeId = `encounter-${encData.id}`;
 
-        let xPos = UNLINKED_X;
-        let yPos = yTrackers.unlinked;
+        let xPosEncounter = UNLINKED_X; // Default to unlinked
+        let yPosEncounter;
         // let linkedToTarget = false; // This variable is not used
 
         // Try to link Encounter to Location
@@ -531,28 +613,19 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         }
         
         if (locationNodeForEncounter) {
-          // Log for Encounter checking targetLinkedYTracker
-          const trackerHasKey = targetLinkedYTracker.has(locationNodeForEncounter.id);
-          const trackerValue = trackerHasKey ? targetLinkedYTracker.get(locationNodeForEncounter.id) : 'N/A';
-          
-          xPos = SOURCES_X; // Position as a source to the location
+          xPosEncounter = SOURCES_X; // Position as a source to the location
           const targetNodeId = locationNodeForEncounter.id;
+          const targetXKeyEncounter = String(Math.round(locationNodeForEncounter.position.x));
 
-          // Determine yPos: if continuing a stack, use stack tracker; otherwise, consider target Y and column Y.
           if (targetLinkedYTracker.has(targetNodeId)) {
-            yPos = targetLinkedYTracker.get(targetNodeId)!; // Non-null assertion as .has(targetNodeId) is true
+            yPosEncounter = targetLinkedYTracker.get(targetNodeId)!;
           } else {
-            yPos = Math.max(locationNodeForEncounter.position.y, yTrackers.sources);
+            yPosEncounter = Math.max(locationNodeForEncounter.position.y, (yColumnTrackers[String(SOURCES_X)] || yBelowStartNode));
           }
 
-          // Log final yPos for problematic encounter/location
-          if (locationNodeForEncounter.data.label === 'dsfsdaf') {
-            
-          }
-
-          targetLinkedYTracker.set(targetNodeId, yPos + getNodeSize('encounterNode').height + linkedNodeSpacingY);
-          yTrackers.sources = Math.max(yTrackers.sources, yPos + getNodeSize('encounterNode').height + globalNodeSpacingY);
-
+          targetLinkedYTracker.set(targetNodeId, yPosEncounter + getNodeSize('encounterNode').height + linkedNodeSpacingY);
+          yColumnTrackers[String(SOURCES_X)] = Math.max((yColumnTrackers[String(SOURCES_X)] || 0), yPosEncounter + getNodeSize('encounterNode').height + globalNodeSpacingY);
+          
           newEdges.push({
             id: `edge-${currentEncounterNodeId}-to-${targetNodeId}`,
             source: currentEncounterNodeId, // Use potentially modified ID
@@ -564,16 +637,15 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             style: { stroke: '#A1A1AA', strokeWidth: 2 }, // Zinc color for associations
           });
         } else {
-          
-          // If still not linked, update yTracker for the UNLINKED_X column before placing the node
-          yPos = yTrackers.unlinked; // Use current unlinked Y
-          yTrackers.unlinked += getNodeSize('encounterNode').height + globalNodeSpacingY; // Increment for next unlinked
+          // Unlinked encounter
+          yPosEncounter = yColumnTrackers[String(UNLINKED_X)] || yBelowStartNode;
+          yColumnTrackers[String(UNLINKED_X)] = yPosEncounter + getNodeSize('encounterNode').height + globalNodeSpacingY;
         }
         
         const encounterNode = createAndRegisterNode(
           currentEncounterNodeId,
           'encounterNode',
-          { x: xPos, y: yPos },
+          { x: xPosEncounter, y: yPosEncounter },
           { 
             label: encData.title || `Encounter ${encData.id}`, 
             linkedNoteIds: encData.linked_note_ids || [] 
@@ -614,18 +686,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       
       // 4. Process Notes
       // This section will now create all note nodes first, then create edges based on entity_links.
-      const NOTES_X = SOURCES_X - (nodeDefaultSizes.noteNode.width + HORIZONTAL_SPACING); // New column for notes, to the left of sources
-      // yTrackers.notes = yOffset; // Remove this, use yTrackers.notesGeneral
+      // const NOTES_X = SOURCES_X - (nodeDefaultSizes.noteNode.width + HORIZONTAL_SPACING); // Already defined earlier
+      // yTrackers.notes = yOffset; // Remove this, use yColumnTrackers[String(NOTES_X)]
 
-      // New tracker for positioning notes in their column based on what they link to.
-      // Key: targetNodeId (e.g., "npc-123")
-      // Value: next available Y position in NOTES_X for a note linking to this target.
       const notesLinkedToTargetYTracker = new Map<string, number>();
 
       apiData.notes?.forEach((noteData: any) => {
         const nodeId = `note-${noteData.id}`;
         const nodeSize = getNodeSize('noteNode');
         let position;
+        let xPosNote = NOTES_X; // Default to NOTES_X column
 
         let primaryTargetNode: Node | undefined = undefined;
         if (noteData.entity_links && noteData.entity_links.length > 0) {
@@ -640,23 +710,20 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         if (primaryTargetNode) {
           let desiredInitialY = primaryTargetNode.position.y;
           let actualY;
+          const noteColumnXKey = String(NOTES_X);
 
           if (notesLinkedToTargetYTracker.has(primaryTargetNode.id)) {
-            // Already a stack of notes linking to this primaryTargetNode, continue that stack
             actualY = notesLinkedToTargetYTracker.get(primaryTargetNode.id)!;
           } else {
-            // First note linking to this primaryTargetNode (or stack).
-            // Align with target's Y, but not above the general flow of the notes column.
-            actualY = Math.max(desiredInitialY, yTrackers.notesGeneral);
+            actualY = Math.max(desiredInitialY, (yColumnTrackers[noteColumnXKey] || yBelowStartNode));
           }
-          position = { x: NOTES_X, y: actualY };
+          position = { x: xPosNote, y: actualY };
           notesLinkedToTargetYTracker.set(primaryTargetNode.id, actualY + nodeSize.height + linkedNodeSpacingY);
-          // Ensure yTrackers.notesGeneral advances past any group of notes linked to the same target
-          yTrackers.notesGeneral = Math.max(yTrackers.notesGeneral, actualY + nodeSize.height + globalNodeSpacingY);
+          yColumnTrackers[noteColumnXKey] = Math.max((yColumnTrackers[noteColumnXKey] || 0), actualY + nodeSize.height + globalNodeSpacingY);
         } else {
-          // Unlinked note or primary target not found
-          position = { x: NOTES_X, y: yTrackers.notesGeneral };
-          yTrackers.notesGeneral += nodeSize.height + globalNodeSpacingY;
+          const noteColumnXKey = String(NOTES_X);
+          position = { x: xPosNote, y: (yColumnTrackers[noteColumnXKey] || yBelowStartNode) };
+          yColumnTrackers[noteColumnXKey] = position.y + nodeSize.height + globalNodeSpacingY;
         }
         
         createAndRegisterNode(
@@ -696,65 +763,21 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
               console.warn(`Sync: Note ${nodeId} links to ${targetEntityType} ${link.linked_entity_id}, but target node ${targetNodeId} not found.`);
             }
           });
-        } else {
-          // If a note has no links, it will be effectively "unlinked"
-          // Its position is already set in the NOTES_X column.
-          // We could move it to UNLINKED_X if preferred, but a dedicated notes column might be clearer.
         }
       });
-      
-      // Section 5 (Create edges from Entities ... to their linked Notes) is now largely handled by the above.
-      // The old logic relied on `linkedNoteIds` on NPCs/Locations etc. which is deprecated.
-      // We can remove or comment out this section.
-      /*
-      // 5. Create edges from Entities (NPCs, Locations, Encounters) to their linked Notes
-      allCreatedNodesMap.forEach(sourceNode => {
-        // Check if the sourceNode is one of the types that can have linked notes
-        if (sourceNode.type === 'npcNode' || sourceNode.type === 'locationNode' || sourceNode.type === 'encounterNode') {
-          if (sourceNode.data && sourceNode.data.linkedNoteIds && Array.isArray(sourceNode.data.linkedNoteIds)) {
-            sourceNode.data.linkedNoteIds.forEach((rawNoteId: string | number) => {
-              const targetNoteNodeId = `note-${rawNoteId}`;
-              const targetNoteNode = allCreatedNodesMap.get(targetNoteNodeId);
-
-              if (targetNoteNode) {
-                const edgeExists = newEdges.some(
-                  edge => (edge.source === sourceNode.id && edge.target === targetNoteNodeId) ||
-                          (edge.source === targetNoteNodeId && edge.target === sourceNode.id)
-                );
-
-                if (!edgeExists) {
-                  newEdges.push({
-                    id: `edge-assoc-${sourceNode.id}-to-${targetNoteNodeId}`,
-                    source: sourceNode.id,
-                    target: targetNoteNodeId,
-                    sourceHandle: 'right',
-                    targetHandle: 'left',
-                    type: 'smoothstep',
-                    animated: false,
-                    style: { stroke: '#6B7280', strokeWidth: 1.5, strokeDasharray: '4,4' }, // Gray-600, dashed
-                  });
-                }
-              } 
-              // else {
-              //   console.warn(`Sync: Entity ${sourceNode.id} lists note ID ${rawNoteId}, but note node ${targetNoteNodeId} not found.`);
-              // }
-            });
-          }
-        }
-      });
-      */
-
+  
       // Process deferred unlinked NPCs
       unlinkedNpcData.forEach(npcData => {
         const nodeId = `npc-${npcData.id}`;
         const nodeSize = getNodeSize('npcNode');
-        const position = { x: UNLINKED_X, y: yTrackers.unlinked };
-        yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
+        const unlinkedXKey = String(UNLINKED_X);
+        const yPosition = yColumnTrackers[unlinkedXKey] || yBelowStartNode;
+        yColumnTrackers[unlinkedXKey] = yPosition + nodeSize.height + globalNodeSpacingY;
         
         createAndRegisterNode(
           nodeId,
           'npcNode',
-          position,
+          { x: UNLINKED_X, y: yPosition },
           { label: npcData.name || `NPC ${npcData.id}`, linkedNoteIds: npcData.linked_note_ids || [] },
           { width: nodeSize.width, height: nodeSize.height }
         );
@@ -764,15 +787,14 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       unlinkedEncounterData.forEach(encData => {
         const nodeId = `encounter-${encData.id}`; 
         const nodeSize = getNodeSize('encounterNode');
-        
-        const unlinkedNodePosition = { x: UNLINKED_X, y: yTrackers.unlinked };
-        
-        yTrackers.unlinked += nodeSize.height + globalNodeSpacingY;
+        const unlinkedXKey = String(UNLINKED_X);
+        const yPosition = yColumnTrackers[unlinkedXKey] || yBelowStartNode;
+        yColumnTrackers[unlinkedXKey] = yPosition + nodeSize.height + globalNodeSpacingY;
         
         createAndRegisterNode(
           nodeId, 
           'encounterNode',
-          unlinkedNodePosition, 
+          { x: UNLINKED_X, y: yPosition }, 
           { 
             label: encData.title || `Encounter ${encData.id}`, 
             linkedNoteIds: encData.linked_note_ids || [] 
@@ -1261,6 +1283,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     const startNode = nodes.find(n => n.type === 'input');
     if (startNode) {
       setCurrentPlayNode(startNode);
+      setPlayHistory([]); // Clear history on start
       setPlayMode(true);
     } else {
       toast.error("No Start Node found to begin play mode.");
@@ -1270,10 +1293,27 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const goToNode = (nodeId: string) => {
     const targetNode = nodes.find(n => n.id === nodeId);
     if (targetNode) {
+      if (currentPlayNode) {
+        setPlayHistory(prevHistory => [...prevHistory, currentPlayNode.id]);
+      }
       setCurrentPlayNode(targetNode);
     } else {
       toast.error(`Node ${nodeId} not found.`);
-      setPlayMode(false); // Optionally close play mode if target is invalid
+      setPlayMode(false); 
+    }
+  };
+
+  const handleBack = () => {
+    if (playHistory.length > 0) {
+      const previousNodeId = playHistory[playHistory.length - 1];
+      const previousNode = nodes.find(n => n.id === previousNodeId);
+      if (previousNode) {
+        setCurrentPlayNode(previousNode);
+        setPlayHistory(prevHistory => prevHistory.slice(0, -1));
+      }
+    } else {
+      // Optionally, if history is empty, maybe go to start node or disable button further
+      // For now, button will be disabled by its condition if playHistory is empty
     }
   };
 
@@ -1466,8 +1506,16 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
               </div>
             )}
             
-            <DialogFooter className="pt-4 border-t border-stone-200 dark:border-stone-700">
-              <Button onClick={() => setPlayMode(false)} variant="ghost" className="text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700">End Play Mode</Button>
+            <DialogFooter className="pt-4 border-t border-stone-200 dark:border-stone-700 flex justify-between">
+              <Button 
+                onClick={handleBack} 
+                variant="outline" 
+                disabled={playHistory.length === 0}
+                className="text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700 disabled:opacity-50"
+              >
+                Back
+              </Button>
+              <Button onClick={() => { setPlayMode(false); setPlayHistory([]); }} variant="ghost" className="text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700">End Play Mode</Button>
             </DialogFooter>
           </div>
 
