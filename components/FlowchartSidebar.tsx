@@ -73,8 +73,6 @@ const FlowchartSidebar: React.FC<FlowchartSidebarProps> = ({ campaignData, loadi
     event.dataTransfer.setData('application/reactflow', JSON.stringify(dragData));
     event.dataTransfer.effectAllowed = 'move';
 
-    const nodeTypeText = entityType.replace('Node', '');
-    
     const escapeSVGText = (text: string) => {
       return text
         .replace(/&/g, '&amp;')
@@ -84,33 +82,35 @@ const FlowchartSidebar: React.FC<FlowchartSidebarProps> = ({ campaignData, loadi
         .replace(/'/g, '&apos;');
     };
 
-    const svgTextContent = escapeSVGText(`${nodeTypeText}: ${entityDisplayName.substring(0, 20)}${entityDisplayName.length > 20 ? '...' : ''}`);
+    // Only show the entity's display name (no node type descriptor)
+    const svgTextContent = escapeSVGText(`${entityDisplayName.substring(0, 20)}${entityDisplayName.length > 20 ? '...' : ''}`);
     const approxTextWidth = svgTextContent.length * 7 + 20;
-    const imageWidth = Math.max(120, approxTextWidth);
-    const imageHeight = 40;
+    const imageWidth = Math.max(200, approxTextWidth);
+    const imageHeight = 80;
 
     // Get the icon path for this entity type
     const iconPath = ICON_PATHS[entityType as keyof typeof ICON_PATHS] || '';
 
-    // Define shapes for each node type
+    // Define shapes for each node type (swapped fill and stroke colors)
     const shapes = {
-      npcNode: `<circle cx="20" cy="20" r="20" fill="#7dd3fc" stroke="#0369a1" stroke-width="1" />`,
-      locationNode: `<polygon points="20,0 40,20 20,40 0,20" fill="#4ade80" stroke="#15803d" stroke-width="1" />`,
-      noteNode: `<rect x="0" y="0" width="40" height="40" fill="#fde68a" stroke="#d97706" stroke-width="1" />`,
-      encounterNode: `<polygon points="20,0 40,10 40,30 20,40 0,30 0,10" fill="#fca5a5" stroke="#ef4444" stroke-width="1" />`
+      npcNode: `<circle cx=\"40\" cy=\"40\" r=\"40\" fill=\"#0369a1\" stroke=\"#7dd3fc\" stroke-width=\"1\" />`,
+      locationNode: `<polygon points=\"75,0 150,50 75,100 0,50\" fill=\"#15803d\" stroke=\"#4ade80\" stroke-width=\"1\" />`,
+      noteNode: `<rect x=\"0\" y=\"0\" width=\"80\" height=\"80\" fill=\"#d97706\" stroke=\"#fde68a\" stroke-width=\"1\" />`,
+      encounterNode: `<polygon points=\"40,0 80,20 80,60 40,80 0,60 0,20\" fill=\"#ef4444\" stroke=\"#fca5a5\" stroke-width=\"1\" />`
     };
 
+    // Adjust center for locationNode (diamond)
+    const isLocation = entityType === 'locationNode';
+    const centerX = isLocation ? 75 : 40;
+    const centerY = isLocation ? 50 : 40;
+    // For location: icon higher, text in center; for others: previous offsets
+    const iconYOffset = isLocation ? -30 : -10;
+    const textYOffset = isLocation ? 0 : 20;
+    // Shift icon left for visual centering
+    const iconXOffset = (isLocation ? 75 : 40) - 8;
+
     const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${imageWidth}" height="${imageHeight}">
-        ${shapes[entityType as keyof typeof shapes]}
-        <g transform="translate(10, ${imageHeight/2}) scale(0.8)">
-          ${iconPath}
-        </g>
-        <text x="35" y="${imageHeight / 2}" font-family="sans-serif" font-size="12" fill="black" dominant-baseline="middle">
-          ${svgTextContent}
-        </text>
-      </svg>
-    `;
+      <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${isLocation ? 150 : 80}\" height=\"${isLocation ? 100 : 80}\">\n        ${shapes[entityType as keyof typeof shapes]}\n        <g transform=\"translate(${iconXOffset}, ${centerY + iconYOffset}) scale(0.6)\" style=\"display: block;\">\n          ${iconPath}\n        </g>\n        <text x=\"${centerX}\" y=\"${centerY + textYOffset}\" font-family=\"sans-serif\" font-size=\"10\" fill=\"black\" text-anchor=\"middle\" dominant-baseline=\"middle\">\n          ${svgTextContent}\n        </text>\n      </svg>\n    `;
 
     if (dragPreviewRef.current) {
       dragPreviewRef.current.innerHTML = svg;
