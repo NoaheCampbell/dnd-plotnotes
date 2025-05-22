@@ -73,8 +73,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const [loadedCampaignId, setLoadedCampaignId] = useState<number | null>(null);
 
   const [playMode, setPlayMode] = useState(false);
-  const [playIndex, setPlayIndex] = useState<number>(0);
-  const [playPath, setPlayPath] = useState<Node[]>([]);
+  const [currentPlayNode, setCurrentPlayNode] = useState<Node | null>(null);
 
   const nodeDefaultSizes = useMemo(() => ({ 
     locationNode: { width: 120, height: 120 },
@@ -1248,45 +1247,98 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const getPlayPath = useCallback(() => {
     // Find the start node (type 'input')
     const startNode = nodes.find(n => n.type === 'input');
-    if (!startNode) return [];
-    // Traverse locations by outgoing edges
-    let path: Node[] = [startNode];
-    let current = startNode;
-    const visited = new Set<string>();
-    visited.add(current.id);
-    while (true) {
-      // Find outgoing edge from current node to a locationNode
-      const nextEdge = edges.find(e => e.source === current.id && nodes.find(n => n.id === e.target && n.type === 'locationNode'));
-      if (!nextEdge) break;
-      const nextNode = nodes.find(n => n.id === nextEdge.target && n.type === 'locationNode');
-      if (!nextNode || visited.has(nextNode.id)) break;
-      path.push(nextNode);
-      visited.add(nextNode.id);
-      current = nextNode;
-    }
-    return path;
+    if (!startNode) return []; // Return empty array, handlePlay will check length
+
+    // This function's original purpose was to find a linear path.
+    // For the new play mode, we only need the actual start node.
+    // The original more complex path finding can be simplified or removed if only the start node is needed.
+    // For now, just returning the start node in an array to satisfy existing checks.
+    return [startNode];
   }, [nodes, edges]);
 
   // Start play mode
   const handlePlay = () => {
-    const path = getPlayPath();
-    if (path.length > 0) {
-      setPlayPath(path);
-      setPlayIndex(0);
+    const startNode = nodes.find(n => n.type === 'input');
+    if (startNode) {
+      setCurrentPlayNode(startNode);
       setPlayMode(true);
     } else {
-      toast.error("No valid path from start node through locations.");
+      toast.error("No Start Node found to begin play mode.");
     }
   };
 
-  // Advance to next node in play mode
-  const handleNext = () => {
-    if (playIndex < playPath.length - 1) {
-      setPlayIndex(playIndex + 1);
+  const goToNode = (nodeId: string) => {
+    const targetNode = nodes.find(n => n.id === nodeId);
+    if (targetNode) {
+      setCurrentPlayNode(targetNode);
     } else {
-      setPlayMode(false);
+      toast.error(`Node ${nodeId} not found.`);
+      setPlayMode(false); // Optionally close play mode if target is invalid
     }
   };
+
+  // Helper to get connected sequential locations for "Go to" buttons
+  const getSequentialNextLocations = useCallback(() => {
+    if (!currentPlayNode) return [];
+    if (currentPlayNode.type !== 'input' && currentPlayNode.type !== 'locationNode') return [];
+
+    return edges
+      .filter(edge => edge.source === currentPlayNode.id && edge.sourceHandle === 'bottom')
+      .map(edge => nodes.find(n => n.id === edge.target && n.type === 'locationNode' && edge.targetHandle === 'top'))
+      .filter(node => !!node) as Node[];
+  }, [nodes, edges, currentPlayNode]);
+
+  // Helper to get associated entities for the current location
+  const getAssociatedEntities = useCallback(() => {
+    if (!currentPlayNode || currentPlayNode.type !== 'locationNode') {
+      return { npcs: [], notes: [], encounters: [] };
+    }
+
+    const associatedNpcs: Node[] = [];
+    const associatedNotes: Node[] = [];
+    const associatedEncounters: Node[] = [];
+
+    edges.forEach(edge => {
+      let entityNode: Node | undefined = undefined;
+      let isAssociated = false;
+
+      // Case 1: Entity links TO current location (e.g., NPC's right handle to Location's left)
+      if (edge.target === currentPlayNode.id && (edge.targetHandle === 'left' || !edge.targetHandle)) {
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        if (sourceNode && (sourceNode.type === 'npcNode' || sourceNode.type === 'noteNode' || sourceNode.type === 'encounterNode')) {
+          entityNode = sourceNode;
+          isAssociated = true;
+        }
+      }
+      // Case 2: Current location links TO entity (e.g., Location's right handle to NPC's left)
+      else if (edge.source === currentPlayNode.id && (edge.sourceHandle === 'right' || !edge.sourceHandle)) {
+        const targetNode = nodes.find(n => n.id === edge.target);
+        if (targetNode && (targetNode.type === 'npcNode' || targetNode.type === 'noteNode' || targetNode.type === 'encounterNode')) {
+          entityNode = targetNode;
+          isAssociated = true;
+        }
+      }
+      
+      if (isAssociated && entityNode) {
+        if (entityNode.type === 'npcNode' && !associatedNpcs.find(n => n.id === entityNode!.id)) {
+          associatedNpcs.push(entityNode);
+        } else if (entityNode.type === 'noteNode' && !associatedNotes.find(n => n.id === entityNode!.id)) {
+          associatedNotes.push(entityNode);
+        } else if (entityNode.type === 'encounterNode' && !associatedEncounters.find(n => n.id === entityNode!.id)) {
+          associatedEncounters.push(entityNode);
+        }
+      }
+    });
+
+    return { 
+      npcs: associatedNpcs, 
+      notes: associatedNotes, 
+      encounters: associatedEncounters 
+    };
+  }, [nodes, edges, currentPlayNode]);
+
+  const sequentialNextLocations = getSequentialNextLocations();
+  const associatedEntities = getAssociatedEntities();
 
   return (
     <div style={{ height: '100%', width: '100%' }} className="bg-background dark:bg-stone-900/50 flex flex-col">
@@ -1379,18 +1431,89 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       </div>
       {/* Play Mode Modal */}
       <Dialog open={playMode} onOpenChange={setPlayMode}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {playPath[playIndex]?.type === 'input' ? 'Start' : playPath[playIndex]?.data?.label || 'Location'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4 text-center">
-            {playPath[playIndex]?.type === 'input' ? 'Begin your journey!' : playPath[playIndex]?.data?.label}
+        <DialogContent className="max-w-3xl flex flex-col sm:flex-row min-h-[60vh] dark:bg-stone-800">
+          {/* Left Pane: Main Location Info & Navigation */}
+          <div className="flex-grow p-4 flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="text-amber-700 dark:text-amber-400">
+                {currentPlayNode?.type === 'input' ? 'Start Your Adventure' : currentPlayNode?.data?.label || 'Current Location'}
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="py-4 flex-grow text-stone-700 dark:text-stone-300">
+              {currentPlayNode?.type === 'input' && (
+                <p>Welcome! Choose your first destination.</p>
+              )}
+              {currentPlayNode?.type === 'locationNode' && (
+                <p>You are at <span className="font-semibold">{currentPlayNode.data.label}</span>.</p>
+                // Placeholder for future location description
+              )}
+            </div>
+
+            {sequentialNextLocations.length > 0 && (
+              <div className="space-y-2 mt-auto mb-4">
+                <p className="text-sm text-stone-600 dark:text-stone-400">Next destinations:</p>
+                {sequentialNextLocations.map(locationNode => (
+                  <Button 
+                    key={locationNode.id} 
+                    onClick={() => goToNode(locationNode.id)}
+                    variant="outline"
+                    className="w-full justify-start border-amber-600 text-amber-700 hover:bg-amber-100 dark:border-amber-500 dark:text-amber-300 dark:hover:bg-amber-700/30"
+                  >
+                    Go to {locationNode.data.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+            
+            <DialogFooter className="pt-4 border-t border-stone-200 dark:border-stone-700">
+              <Button onClick={() => setPlayMode(false)} variant="ghost" className="text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-700">End Play Mode</Button>
+            </DialogFooter>
           </div>
-          <DialogFooter>
-            <Button onClick={handleNext}>{playIndex < playPath.length - 1 ? 'Next' : 'Finish'}</Button>
-          </DialogFooter>
+
+          {/* Right Pane: Associated Entities (Sidebar) */}
+          {currentPlayNode?.type === 'locationNode' && (
+            <div className="w-full sm:w-2/5 p-4 border-t sm:border-t-0 sm:border-l border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50 overflow-y-auto">
+              <h3 className="text-lg font-semibold mb-3 text-sky-700 dark:text-sky-400">Associated Information</h3>
+              
+              {associatedEntities.npcs.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold text-sky-600 dark:text-sky-300 mb-1">NPCs:</h4>
+                  <ul className="list-disc list-inside pl-2 space-y-1">
+                    {associatedEntities.npcs.map(npc => (
+                      <li key={npc.id} className="text-sm text-stone-700 dark:text-stone-300">{npc.data.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {associatedEntities.notes.length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold text-orange-600 dark:text-orange-400 mb-1">Notes:</h4>
+                  <ul className="list-disc list-inside pl-2 space-y-1">
+                    {associatedEntities.notes.map(note => (
+                      <li key={note.id} className="text-sm text-stone-700 dark:text-stone-300">{note.data.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {associatedEntities.encounters.length > 0 && (
+                <div>
+                  <h4 className="text-md font-semibold text-red-600 dark:text-red-400 mb-1">Encounters:</h4>
+                  <ul className="list-disc list-inside pl-2 space-y-1">
+                    {associatedEntities.encounters.map(encounter => (
+                      <li key={encounter.id} className="text-sm text-stone-700 dark:text-stone-300">{encounter.data.label}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {associatedEntities.npcs.length === 0 && associatedEntities.notes.length === 0 && associatedEntities.encounters.length === 0 && (
+                <p className="text-sm text-stone-500 dark:text-stone-400">No specific NPCs, notes, or encounters are directly linked to this location on the map.</p>
+              )}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
