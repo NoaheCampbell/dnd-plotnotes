@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { locations as Location } from '@prisma/client';
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import FlowchartSidebar from './FlowchartSidebar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface FlowchartEditorProps {
   flowchartId?: string;
@@ -70,6 +71,10 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
   const reactFlowWrapper = useRef<HTMLDivElement>(null); // Ref for the ReactFlow wrapper
 
   const [loadedCampaignId, setLoadedCampaignId] = useState<number | null>(null);
+
+  const [playMode, setPlayMode] = useState(false);
+  const [playIndex, setPlayIndex] = useState<number>(0);
+  const [playPath, setPlayPath] = useState<Node[]>([]);
 
   const nodeDefaultSizes = useMemo(() => ({ 
     locationNode: { width: 120, height: 120 },
@@ -210,44 +215,27 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
 
       const newNodes: Node[] = [];
       const newEdges: Edge[] = [];
-
-      // Set sidebar data
-      // setSidebarData(apiData);
-
-      const yOffset = 50;
-      const globalNodeSpacingY = 150; // General vertical spacing between nodes in a column
-      const linkedNodeSpacingY = 50;  // Tighter vertical spacing for nodes linked to the same target
-
-      const HORIZONTAL_SPACING = 150; // Horizontal space between columns / linked nodes
-
-      // Define X positions for columns
+      const allCreatedNodesMap = new Map<string, Node>();
+      let globalZIndexCounter = 1;
+      const yOffset = 50; // Initial top margin for the Start Node
+      const globalNodeSpacingY = 150;
+      const linkedNodeSpacingY = 50;
+      const HORIZONTAL_SPACING = 150;
+      const nodeDefaultSize = nodeDefaultSizes.default; // Common default size
+      
       const UNLINKED_X = 50;
-      const SOURCES_X = UNLINKED_X + (nodeDefaultSizes.default.width + HORIZONTAL_SPACING); 
-      const TARGETS_X = SOURCES_X + (nodeDefaultSizes.default.width + HORIZONTAL_SPACING);
+      // Calculate X positions based on default node width to maintain consistency
+      const SOURCES_X = UNLINKED_X + (nodeDefaultSize.width + HORIZONTAL_SPACING); 
+      const TARGETS_X = SOURCES_X + (nodeDefaultSize.width + HORIZONTAL_SPACING);
 
-      // Trackers for Y positions within columns
+      // Initialize yTrackers - these will be updated after Start Node is positioned
       const yTrackers = {
-        unlinked: yOffset,
-        sources: yOffset, // Added for the SOURCES_X column
+        unlinked: yOffset, 
+        sources: yOffset,
         targets: yOffset,
-        notesGeneral: yOffset, // For overall progression in the NOTES_X column
+        notesGeneral: yOffset,
       };
-
-      const unlinkedNpcData: any[] = [];
-      const unlinkedEncounterData: any[] = [];
-
-      // Map to store next Y position for sources linking to a specific target node ID
-      const targetLinkedYTracker = new Map<string, number>();
-      const locationNodeMapByName = new Map<string, Node>(); // For finding location nodes by name
-      const allCreatedNodesMap = new Map<string, Node>(); // To quickly find any node by its ID
-      let globalZIndexCounter = 1; // Initialize z-index counter
-
-      interface LocationNodeInternal extends Location {
-        children: number[];
-        inDegree: number;
-      }
-
-      // Helper function to create and register a new node
+      
       const createAndRegisterNode = (nodeId: string, type: string, position: {x: number, y: number}, data: any, style: any) => {
         const node: Node = {
           id: nodeId,
@@ -259,8 +247,64 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         };
         newNodes.push(node);
         allCreatedNodesMap.set(nodeId, node);
-        return node; // Return the created node in case it's needed immediately
+        return node;
       };
+
+      // --- Start Node Handling ---
+      let startNode: Node | undefined;
+      // Try to find an existing start node from the API data first
+      const existingStartNodeFromApi = apiData.nodes?.find((n: Node) => n.type === 'input');
+      const startNodeSizeDetails = nodeDefaultSizes.default; // Start node uses default size
+
+      if (existingStartNodeFromApi) {
+          // If found, use its properties but ensure it's registered in our new list
+          // ALWAYS place the Start Node at the fixed TARGETS_X, yOffset position
+          startNode = createAndRegisterNode(
+              existingStartNodeFromApi.id || `start-node-api-${Date.now()}`, // Ensure ID
+              'input',
+              { x: TARGETS_X, y: yOffset }, // Always use fixed position in the target column
+              existingStartNodeFromApi.data || { label: 'Start Node' },
+              existingStartNodeFromApi.style || { width: startNodeSizeDetails.width, height: startNodeSizeDetails.height }
+          );
+      } else {
+          // Create a new start node if not found in API data
+          startNode = createAndRegisterNode(
+              `start-node-sync-${Date.now()}`, // Unique ID for newly created start node
+              'input',
+              { x: TARGETS_X, y: yOffset }, // Standard position for new start node in the target column
+              { label: 'Start Node' },
+              { width: startNodeSizeDetails.width, height: startNodeSizeDetails.height }
+          );
+      }
+
+      if (!startNode) { 
+        toast.error("Critical: Start node could not be created/retrieved. Sync aborted.");
+        setNodes(initialNodes); // Revert to a safe state
+        setEdges([]);
+        return;
+      }
+
+      // --- Initialize Y Trackers based on the Start Node's actual position and height ---
+      const actualStartNodeHeight = (startNode.style?.height as number) || startNodeSizeDetails.height;
+      const yBelowStartNode = startNode.position.y + actualStartNodeHeight + globalNodeSpacingY;
+
+      yTrackers.unlinked = yBelowStartNode;
+      yTrackers.sources = yBelowStartNode;
+      yTrackers.targets = yBelowStartNode; // This will be the Y for the first Location/Target linked to StartNode
+      yTrackers.notesGeneral = yBelowStartNode;
+
+
+      const unlinkedNpcData: any[] = [];
+      const unlinkedEncounterData: any[] = [];
+
+      // Map to store next Y position for sources linking to a specific target node ID
+      const targetLinkedYTracker = new Map<string, number>();
+      const locationNodeMapByName = new Map<string, Node>(); // For finding location nodes by name
+
+      interface LocationNodeInternal extends Location {
+        children: number[];
+        inDegree: number;
+      }
 
       // 1. Process Locations (as Targets)
       // Topological sort for locations based on next_location_id
@@ -300,22 +344,60 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
         });
       }
       
+      let firstTargetColumnNodeProcessed = false; // To link StartNode to the first location
+
       orderedLocations.forEach((locData: LocationNodeInternal) => {
         const nodeId = `location-${locData.id}`;
         const nodeSize = nodeDefaultSizes.locationNode || nodeDefaultSizes.default;
-        const position = { x: TARGETS_X, y: yTrackers.targets };
+        let position: { x: number; y: number };
         
-        const locationNode = createAndRegisterNode(
-          nodeId, 
-          'locationNode', 
-          position, 
-          { label: locData.name || `Location ${locData.id}` }, 
-          { width: nodeSize.width, height: nodeSize.height }
-        );
-        if (locData.name) {
-          locationNodeMapByName.set(locData.name, locationNode);
+        if (!firstTargetColumnNodeProcessed && startNode) {
+            // This is the first location node to be placed in the TARGETS_X column.
+            // Position it relative to where yTrackers.targets was initialized (yBelowStartNode).
+            position = { x: TARGETS_X, y: yTrackers.targets };
+
+            const locationNode = createAndRegisterNode(
+              nodeId, 
+              'locationNode', 
+              position, 
+              { label: locData.name || `Location ${locData.id}` }, 
+              { width: nodeSize.width, height: nodeSize.height }
+            );
+            if (locData.name) {
+              locationNodeMapByName.set(locData.name, locationNode);
+            }
+
+            // Connect Start Node to this first location
+            newEdges.push({
+                id: `edge-${startNode.id}-to-${locationNode.id}`,
+                source: startNode.id,
+                target: locationNode.id,
+                sourceHandle: 'bottom',
+                targetHandle: 'top',
+                type: 'straight',
+                animated: false,
+                style: { stroke: '#FFF', strokeWidth: 2, strokeDasharray: '5 5' }, // Style as per existing seq. loc.
+                zIndex: 0,
+            });
+            
+            // Update yTracker for the *next* location in this column
+            yTrackers.targets = position.y + nodeSize.height + globalNodeSpacingY;
+            firstTargetColumnNodeProcessed = true;
+        } else {
+            // Subsequent location nodes in the TARGETS_X column
+            position = { x: TARGETS_X, y: yTrackers.targets };
+            const locationNode = createAndRegisterNode(
+              nodeId, 
+              'locationNode', 
+              position, 
+              { label: locData.name || `Location ${locData.id}` }, 
+              { width: nodeSize.width, height: nodeSize.height }
+            );
+            if (locData.name) {
+              locationNodeMapByName.set(locData.name, locationNode);
+            }
+            yTrackers.targets += nodeSize.height + globalNodeSpacingY;
         }
-        yTrackers.targets += nodeSize.height + globalNodeSpacingY;
       });
 
       // Create vertical edges between sequenced locations
@@ -330,7 +412,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
               target: targetNodeId,
               sourceHandle: 'bottom',
               targetHandle: 'top',
-              type: 'smoothstep',
+              type: 'straight',
               animated: false,
               style: { stroke: '#FFF', strokeWidth: 2, strokeDasharray: '5 5' }, // Dashed white line
               zIndex: 0, // Ensure it's behind nodes
@@ -396,6 +478,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             target: targetLocationNode.id,
             sourceHandle: 'right',
             targetHandle: 'left',
+            type: 'straight',
           });
           createAndRegisterNode(
             nodeId,
@@ -477,7 +560,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
             target: targetNodeId,
             sourceHandle: 'right', 
             targetHandle: 'left',
-            type: 'smoothstep', 
+            type: 'straight',
             animated: false,
             style: { stroke: '#A1A1AA', strokeWidth: 2 }, // Zinc color for associations
           });
@@ -518,7 +601,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
                   target: npcNodeId,
                   sourceHandle: 'right',
                   targetHandle: 'left',
-                  type: 'smoothstep',
+                  type: 'straight',
                   animated: false,
                   style: { stroke: '#71717A', strokeWidth: 1.5, strokeDasharray: '5,5' }, // Dashed line for NPC connection
                 });
@@ -601,7 +684,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
                 target: targetNodeId,
                 sourceHandle: 'right', // Assuming NoteNode has a 'right' handle
                 targetHandle: 'left',  // Assuming target nodes have a 'left' handle
-                type: 'smoothstep',
+                type: 'straight',
                 animated: false,
                 style: { stroke: '#F59E0B', strokeWidth: 1.5 }, // Amber color for note links
               });
@@ -1161,6 +1244,50 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
     }
   }, [rfInstance.current, currentFlowchartId]); // Rerun if instance or ID changes
 
+  // Find the play path (start node + locations in order)
+  const getPlayPath = useCallback(() => {
+    // Find the start node (type 'input')
+    const startNode = nodes.find(n => n.type === 'input');
+    if (!startNode) return [];
+    // Traverse locations by outgoing edges
+    let path: Node[] = [startNode];
+    let current = startNode;
+    const visited = new Set<string>();
+    visited.add(current.id);
+    while (true) {
+      // Find outgoing edge from current node to a locationNode
+      const nextEdge = edges.find(e => e.source === current.id && nodes.find(n => n.id === e.target && n.type === 'locationNode'));
+      if (!nextEdge) break;
+      const nextNode = nodes.find(n => n.id === nextEdge.target && n.type === 'locationNode');
+      if (!nextNode || visited.has(nextNode.id)) break;
+      path.push(nextNode);
+      visited.add(nextNode.id);
+      current = nextNode;
+    }
+    return path;
+  }, [nodes, edges]);
+
+  // Start play mode
+  const handlePlay = () => {
+    const path = getPlayPath();
+    if (path.length > 0) {
+      setPlayPath(path);
+      setPlayIndex(0);
+      setPlayMode(true);
+    } else {
+      toast.error("No valid path from start node through locations.");
+    }
+  };
+
+  // Advance to next node in play mode
+  const handleNext = () => {
+    if (playIndex < playPath.length - 1) {
+      setPlayIndex(playIndex + 1);
+    } else {
+      setPlayMode(false);
+    }
+  };
+
   return (
     <div style={{ height: '100%', width: '100%' }} className="bg-background dark:bg-stone-900/50 flex flex-col">
       <div 
@@ -1177,6 +1304,7 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           placeholder="Flowchart Name"
           className="max-w-xs text-base h-9 bg-amber-50/50 border-amber-800/30 text-amber-900 placeholder:text-amber-700/50 dark:bg-amber-900/20 dark:border-amber-800/30 dark:text-amber-200 dark:placeholder:text-amber-600/50"
         />
+        <Button onClick={handlePlay} variant="default" size="sm" className="bg-green-700 text-white hover:bg-green-800">▶ Play</Button>
         <Button onClick={addNpcNode} variant="outline" size="sm" className="text-sky-800 border-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:border-sky-500 dark:hover:bg-stone-700">Add NPC</Button>
         <Button onClick={addLocationNode} variant="outline" size="sm" className="text-green-800 border-green-700 hover:bg-green-100 dark:text-green-300 dark:border-green-500 dark:hover:bg-stone-700">Add Location</Button>
         <Button onClick={addNoteNode} variant="outline" size="sm" className="text-amber-800 border-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:border-amber-500 dark:hover:bg-stone-700">Add Note</Button>
@@ -1249,6 +1377,22 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
           </ReactFlow>
         </div>
       </div>
+      {/* Play Mode Modal */}
+      <Dialog open={playMode} onOpenChange={setPlayMode}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {playPath[playIndex]?.type === 'input' ? 'Start' : playPath[playIndex]?.data?.label || 'Location'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 text-center">
+            {playPath[playIndex]?.type === 'input' ? 'Begin your journey!' : playPath[playIndex]?.data?.label}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleNext}>{playIndex < playPath.length - 1 ? 'Next' : 'Finish'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
