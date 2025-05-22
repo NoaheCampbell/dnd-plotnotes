@@ -7,14 +7,7 @@ import {
 } from "@/components/ui/accordion";
 import { Loader2, Users, MapPin, FileText, Swords, GripVertical } from "lucide-react";
 import { Resizable } from "re-resizable";
-
-// Icon SVG path data
-const ICON_PATHS = {
-  npcNode: `<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>`,
-  locationNode: `<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle>`,
-  noteNode: `<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path>`,
-  encounterNode: `<path d="M14.5 17.5c-2.4-2.4-2.4-6.3 0-8.7l1-1c2.4-2.4 6.3-2.4 8.7 0c.6.6 1 1.3 1.3 2.1c-.7.3-1.4.8-2.1 1.3l-1.6 1.6A5.04 5.04 0 0 1 16 13c0 2.8 2.2 5 5 5c.7 0 1.3-.1 1.9-.4l1.6 1.6c.5.5 1 .9 1.6 1.3c-.8.3-1.5.7-2.1 1.3c-2.4 2.4-6.3 2.4-8.7 0l-1-1Z"></path><path d="m22 2-2.5 2.5"></path><path d="m11.5 2.5-1 1c-2.4 2.4-2.4 6.3 0 8.7L12 13.7c.6.6 1.3 1 2.1 1.3c-.7.3-1.4.8-2.1 1.3l-1.6 1.6a5.04 5.04 0 0 1-4.4-1.5C2.2 12.2 2 6.5 2 6.5s4.3-.2 8.2 3.7c.2.2.3.3.5.5l1.3-1.3c2.4-2.4 6.3-2.4 8.7 0Z"></path>`
-};
+import ReactDOMServer from 'react-dom/server';
 
 // const DRAG_PREVIEW_ID = 'custom-drag-preview'; // No longer primary method
 
@@ -88,8 +81,13 @@ const FlowchartSidebar: React.FC<FlowchartSidebarProps> = ({ campaignData, loadi
     const imageWidth = Math.max(200, approxTextWidth);
     const imageHeight = 80;
 
-    // Get the icon path for this entity type
-    const iconPath = ICON_PATHS[entityType as keyof typeof ICON_PATHS] || '';
+    // Find the icon component for this entity type
+    const entityTypeItem = entityTypes.find(e => e.nodeType === entityType);
+    const IconComponent = entityTypeItem ? entityTypeItem.icon : null;
+    // Render the icon to SVG string
+    const iconSVG = IconComponent ? ReactDOMServer.renderToStaticMarkup(
+      <IconComponent size={32} color="black" />
+    ) : '';
 
     // Define shapes for each node type (swapped fill and stroke colors)
     const shapes = {
@@ -110,7 +108,7 @@ const FlowchartSidebar: React.FC<FlowchartSidebarProps> = ({ campaignData, loadi
     const iconXOffset = (isLocation ? 75 : 40) - 8;
 
     const svg = `
-      <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${isLocation ? 150 : 80}\" height=\"${isLocation ? 100 : 80}\">\n        ${shapes[entityType as keyof typeof shapes]}\n        <g transform=\"translate(${iconXOffset}, ${centerY + iconYOffset}) scale(0.6)\" style=\"display: block;\">\n          ${iconPath}\n        </g>\n        <text x=\"${centerX}\" y=\"${centerY + textYOffset}\" font-family=\"sans-serif\" font-size=\"10\" fill=\"black\" text-anchor=\"middle\" dominant-baseline=\"middle\">\n          ${svgTextContent}\n        </text>\n      </svg>\n    `;
+      <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${isLocation ? 150 : 80}\" height=\"${isLocation ? 100 : 80}\">\n        ${shapes[entityType as keyof typeof shapes]}\n        <g transform=\"translate(${iconXOffset}, ${centerY + iconYOffset}) scale(0.6)\" style=\"display: block;\">\n          ${iconSVG}\n        </g>\n        <text x=\"${centerX}\" y=\"${centerY + textYOffset}\" font-family=\"sans-serif\" font-size=\"10\" fill=\"black\" text-anchor=\"middle\" dominant-baseline=\"middle\">\n          ${svgTextContent}\n        </text>\n      </svg>\n    `;
 
     if (dragPreviewRef.current) {
       dragPreviewRef.current.innerHTML = svg;
