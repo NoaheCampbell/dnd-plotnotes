@@ -181,7 +181,6 @@ export default function CampaignDetailsClient({
   };
 
   const triggerFlowchartSync = () => {
-    console.log("Flowchart sync triggered from campaign details. This might need review.");
     setFlowchartSyncTrigger(prev => prev + 1); 
   };
 

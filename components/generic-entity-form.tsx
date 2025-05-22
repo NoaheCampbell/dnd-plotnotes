@@ -296,13 +296,6 @@ export default function GenericEntityForm({
     } else if (config.api === '/api/locations') {
       if (selectedNextLocationId !== null && selectedNextLocationId !== undefined && String(selectedNextLocationId).trim() !== "") {
         formData.append('next_location_id', String(selectedNextLocationId));
-      } else {
-        // Ensure that if it's meant to be null, it's explicitly sent or handled by backend to be set to null
-        // Depending on API, might need to send empty string or specific null marker, or omit
-         console.log("Next location ID is null or empty, not appending to formData for explicit nullification or omission.");
-        // If your API expects 'next_location_id' to be absent for null, then do nothing.
-        // If your API expects an empty string or 'null' string for nullification, append accordingly:
-        // formData.append('next_location_id', ''); // or 'null' if API handles it that way
       }
     }
 

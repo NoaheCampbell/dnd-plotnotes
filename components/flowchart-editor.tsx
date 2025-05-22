@@ -1155,23 +1155,11 @@ const FlowchartEditor: React.FC<FlowchartEditorProps> = ({ flowchartId, campaign
       const timer = setTimeout(() => {
         if (rfInstance.current) {
           rfInstance.current.fitView();
-          console.log("[FlowchartEditor] fitView() called for new flowchart.");
         }
       }, 100); // Small delay to ensure canvas is ready
       return () => clearTimeout(timer);
     }
   }, [rfInstance.current, currentFlowchartId]); // Rerun if instance or ID changes
-
-  // ADDED CONSOLE LOGS FOR DIAGNOSTICS
-  if (typeof window !== 'undefined') { // Ensure logs run only client-side
-    console.log("[FlowchartEditor] Rendering Details:");
-    console.log("  - flowchartId (prop):", flowchartId);
-    console.log("  - currentFlowchartId (state):", currentFlowchartId);
-    console.log("  - campaignId (prop):", campaignId);
-    console.log("  - initialNodes (constant):", JSON.stringify(initialNodes));
-    console.log("  - nodes (state before return):", JSON.stringify(nodes));
-    console.log("  - flowchartViewKey (state):", flowchartViewKey);
-  }
 
   return (
     <div style={{ height: '100%', width: '100%' }} className="bg-background dark:bg-stone-900/50 flex flex-col">
